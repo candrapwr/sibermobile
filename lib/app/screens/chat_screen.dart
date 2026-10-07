@@ -26,21 +26,49 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scroll = ScrollController();
   bool _promptShowing = false;
   bool _promptScheduled = false;
+  bool _followOutput = true;
+  bool _scrollScheduled = false;
+  bool _wasBusy = false;
+  bool _jumpingToBottom = false;
+
+  static const double _followThreshold = 96;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_handleScroll);
+  }
 
   @override
   void dispose() {
+    _scroll.removeListener(_handleScroll);
     _scroll.dispose();
     super.dispose();
   }
 
-  void _scrollToBottom() {
+  void _handleScroll() {
+    if (_jumpingToBottom || !_scroll.hasClients) return;
+    final distanceFromBottom =
+        _scroll.position.maxScrollExtent - _scroll.position.pixels;
+    // Once the user scrolls away from the tail, streaming output must not
+    // steal the gesture. Scrolling back near the tail re-enables follow mode.
+    _followOutput = distanceFromBottom <= _followThreshold;
+  }
+
+  void _scheduleFollowScroll() {
+    if (_scrollScheduled) return;
+    _scrollScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scroll.hasClients) return;
-      _scroll.animateTo(
-        _scroll.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 240),
-        curve: Curves.easeOutCubic,
-      );
+      _scrollScheduled = false;
+      if (!mounted || !_scroll.hasClients || !_followOutput) return;
+      _jumpingToBottom = true;
+      try {
+        // A direct jump avoids stacking animations for every streamed token.
+        // The follow flag is checked again above, so a manual drag wins.
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      } finally {
+        _jumpingToBottom = false;
+      }
     });
   }
 
@@ -93,7 +121,13 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final controller = context.watch<ChatController>();
     _maybeShowPrompt(controller);
-    if (controller.isBusy) _scrollToBottom();
+    if (controller.isBusy && !_wasBusy) {
+      // Starting a new turn should reveal the new user message even when the
+      // previous conversation was scrolled somewhere in the middle.
+      _followOutput = true;
+    }
+    _wasBusy = controller.isBusy;
+    if (controller.isBusy && _followOutput) _scheduleFollowScroll();
 
     final configured = controller.isConfigured;
     final items = controller.items;

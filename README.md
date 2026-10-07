@@ -607,6 +607,13 @@ sistem — dan AI bisa memakai `open_app_settings` untuk membukanya.
 Tiga penyesuaian dari template Flutter standar, semuanya di
 `android/app/build.gradle.kts` dan `AndroidManifest.xml`:
 
+Proyek ini memakai Gradle **9.1.0**, Android Gradle Plugin **9.0.1**, dan
+Kotlin Gradle Plugin **2.3.20**. Kombinasi tersebut memenuhi batas dukungan
+Flutter 3.47 tanpa peringatan versi Gradle/AGP/Kotlin saat build. `android.newDsl`
+dan `android.builtInKotlin` sengaja tetap nonaktif karena Flutter Gradle Plugin
+3.47 masih memakai extension Android lama; migrasi built-in Kotlin baru aman
+setelah seluruh plugin native di proyek mendukungnya.
+
 ```kotlin
 compileOptions {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -644,7 +651,8 @@ permission_handler 13.x
 ```
 
 SDK platform 37 sekarang diinstal sebagai folder `android-37.0` (skema versi
-minor baru), sedangkan AGP 8.11.1 mencari `android-37`. Hasilnya build gagal:
+minor baru), sedangkan sebagian versi AGP lama mencari `android-37`. Hasilnya
+build dapat gagal:
 
 ```
 Failed to find target with hash string 'android-37'
