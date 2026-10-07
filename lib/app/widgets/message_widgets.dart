@@ -1,0 +1,540 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../chat_items.dart';
+import '../theme/app_theme.dart';
+
+class UserBubbleView extends StatelessWidget {
+  const UserBubbleView({super.key, required this.item});
+
+  final UserBubble item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final bubbleColor = colors.primaryContainer.withValues(
+      alpha: theme.brightness == Brightness.dark ? 0.88 : 0.9,
+    );
+    final bubbleText = colors.onPrimaryContainer;
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(42, 4, 4, 4),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.88,
+        ),
+        decoration: BoxDecoration(
+          color: bubbleColor,
+          border: Border.all(color: bubbleText.withValues(alpha: 0.12)),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(14),
+            topRight: Radius.circular(14),
+            bottomLeft: Radius.circular(14),
+            bottomRight: Radius.circular(4),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (item.text.isNotEmpty)
+              SelectableText(
+                item.text,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: bubbleText,
+                  height: 1.45,
+                ),
+              ),
+            if (item.text.isNotEmpty && item.attachmentNames.isNotEmpty)
+              const SizedBox(height: 7),
+            for (final name in item.attachmentNames)
+              Container(
+                margin: const EdgeInsets.only(top: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: bubbleText.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.attach_file_rounded,
+                      color: bubbleText,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: bubbleText,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AssistantBubbleView extends StatelessWidget {
+  const AssistantBubbleView({super.key, required this.item});
+
+  final AssistantBubble item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+      child: SizedBox(
+        width: double.infinity,
+        child: _AssistantMarkdown(data: item.text),
+      ),
+    );
+  }
+}
+
+class _AssistantMarkdown extends StatelessWidget {
+  const _AssistantMarkdown({required this.data});
+
+  final String data;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final body = theme.textTheme.bodyMedium?.copyWith(height: 1.48);
+    final codeBackground = colors.surfaceContainerHighest.withValues(
+      alpha: theme.brightness == Brightness.dark ? 0.75 : 0.6,
+    );
+
+    return MarkdownBody(
+      data: data,
+      selectable: true,
+      softLineBreak: true,
+      onTapLink: (_, href, _) => _openMarkdownLink(href),
+      styleSheet: MarkdownStyleSheet(
+        p: body,
+        h1: theme.textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.w800,
+          height: 1.25,
+        ),
+        h2: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w800,
+          height: 1.3,
+        ),
+        h3: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w800,
+          height: 1.35,
+        ),
+        h4: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+        strong: body?.copyWith(fontWeight: FontWeight.w800),
+        em: body?.copyWith(fontStyle: FontStyle.italic),
+        a: body?.copyWith(
+          color: colors.primary,
+          decoration: TextDecoration.underline,
+          decorationColor: colors.primary.withValues(alpha: 0.55),
+        ),
+        blockquote: body?.copyWith(color: colors.onSurfaceVariant),
+        blockquotePadding: const EdgeInsets.fromLTRB(10, 7, 9, 7),
+        blockquoteDecoration: BoxDecoration(
+          color: colors.primary.withValues(alpha: 0.06),
+          border: Border(left: BorderSide(color: colors.primary, width: 3)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        code: theme.textTheme.bodySmall?.copyWith(
+          fontFamily: 'monospace',
+          fontSize: 12.5,
+          height: 1.5,
+          color: colors.onSurface,
+          backgroundColor: codeBackground,
+        ),
+        codeblockPadding: const EdgeInsets.all(10),
+        codeblockDecoration: BoxDecoration(
+          color: codeBackground,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: colors.outlineVariant.withValues(alpha: 0.55),
+          ),
+        ),
+        listBullet: body?.copyWith(
+          color: colors.primary,
+          fontWeight: FontWeight.w800,
+        ),
+        tableHead: theme.textTheme.bodySmall?.copyWith(
+          fontWeight: FontWeight.w800,
+        ),
+        tableBody: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+        tableBorder: TableBorder.all(
+          color: colors.outlineVariant.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        tableCellsPadding: const EdgeInsets.symmetric(
+          horizontal: 7,
+          vertical: 5,
+        ),
+        horizontalRuleDecoration: BoxDecoration(
+          border: Border(top: BorderSide(color: colors.outlineVariant)),
+        ),
+        pPadding: const EdgeInsets.only(bottom: 4),
+        h1Padding: const EdgeInsets.only(top: 6, bottom: 5),
+        h2Padding: const EdgeInsets.only(top: 6, bottom: 4),
+        h3Padding: const EdgeInsets.only(top: 4, bottom: 3),
+        blockSpacing: 6,
+      ),
+    );
+  }
+
+  Future<void> _openMarkdownLink(String? href) async {
+    if (href == null) return;
+    final uri = Uri.tryParse(href);
+    if (uri == null || !{'http', 'https'}.contains(uri.scheme)) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+class AiThinkingIndicator extends StatefulWidget {
+  const AiThinkingIndicator({super.key, required this.label});
+
+  final String label;
+
+  @override
+  State<AiThinkingIndicator> createState() => _AiThinkingIndicatorState();
+}
+
+class _AiThinkingIndicatorState extends State<AiThinkingIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animation = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1250),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _animation.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedBuilder(
+            animation: _animation,
+            builder: (context, _) => Row(
+              children: List.generate(3, (index) {
+                final wave =
+                    (math.sin((_animation.value * math.pi * 2) - index * 0.8) +
+                        1) /
+                    2;
+                return Container(
+                  width: 6,
+                  height: 6,
+                  margin: EdgeInsets.only(right: index == 2 ? 0 : 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: theme.colorScheme.primary.withValues(
+                      alpha: 0.3 + wave * 0.7,
+                    ),
+                  ),
+                  transform: Matrix4.translationValues(0, -2 * wave, 0),
+                );
+              }),
+            ),
+          ),
+          const SizedBox(width: 9),
+          Flexible(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: Text(
+                widget.label,
+                key: ValueKey(widget.label),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SystemNoticeView extends StatelessWidget {
+  const SystemNoticeView({super.key, required this.item});
+
+  final SystemNotice item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = item.isError
+        ? theme.colorScheme.error
+        : theme.colorScheme.primary;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            item.isError
+                ? Icons.error_outline_rounded
+                : Icons.info_outline_rounded,
+            color: color,
+            size: 17,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              item.text,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ToolCallBlockView extends StatelessWidget {
+  const ToolCallBlockView({super.key, required this.item, this.onSaveFile});
+
+  final ToolCallBlock item;
+  final Future<Uri?> Function(SharedFileInfo file)? onSaveFile;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final visual = _toolVisual(item.status, theme);
+    final sharedFile = item.sharedFile;
+    final running =
+        item.status == ToolCallStatus.running ||
+        item.status == ToolCallStatus.pending;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 3, 10, 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: visual.color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              if (running)
+                SizedBox(
+                  width: 17,
+                  height: 17,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: visual.color,
+                  ),
+                )
+              else
+                Icon(visual.icon, color: visual.color, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                visual.label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: visual.color,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          if (sharedFile != null && !running) ...[
+            const SizedBox(height: 8),
+            _SharedFileCard(
+              file: sharedFile,
+              onSave: onSaveFile == null
+                  ? null
+                  : () => _saveSharedFile(context, sharedFile),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveSharedFile(
+    BuildContext context,
+    SharedFileInfo file,
+  ) async {
+    try {
+      final saved = await onSaveFile!(file);
+      if (!context.mounted || saved == null) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text('File berhasil disimpan ke perangkat.'),
+          ),
+        );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Theme.of(context).colorScheme.errorContainer,
+            content: Text(
+              'File gagal disimpan: $error',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onErrorContainer,
+              ),
+            ),
+          ),
+        );
+    }
+  }
+}
+
+class _SharedFileCard extends StatelessWidget {
+  const _SharedFileCard({required this.file, required this.onSave});
+
+  final SharedFileInfo file;
+  final VoidCallback? onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(9, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.52),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.7)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.insert_drive_file_outlined,
+            color: colors.primary,
+            size: 21,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  file.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${_formatFileSize(file.bytes)} · siap disimpan',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton.tonalIcon(
+            onPressed: onSave,
+            icon: const Icon(Icons.download_rounded, size: 17),
+            label: const Text('Simpan'),
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatFileSize(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  if (bytes < 1024 * 1024 * 1024) {
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+}
+
+({IconData icon, Color color, String label}) _toolVisual(
+  ToolCallStatus status,
+  ThemeData theme,
+) {
+  return switch (status) {
+    ToolCallStatus.pending => (
+      icon: Icons.schedule_rounded,
+      color: theme.colorScheme.primary,
+      label: 'Menunggu',
+    ),
+    ToolCallStatus.running => (
+      icon: Icons.sync_rounded,
+      color: theme.colorScheme.primary,
+      label: 'Menjalankan',
+    ),
+    ToolCallStatus.done => (
+      icon: Icons.check_circle_outline_rounded,
+      color: AppTheme.accent,
+      label: 'Berhasil',
+    ),
+    ToolCallStatus.denied => (
+      icon: Icons.block_rounded,
+      color: theme.colorScheme.error,
+      label: 'Ditolak',
+    ),
+    ToolCallStatus.error => (
+      icon: Icons.error_outline_rounded,
+      color: theme.colorScheme.error,
+      label: 'Gagal',
+    ),
+  };
+}
