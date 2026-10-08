@@ -49,6 +49,7 @@ class ToolContext {
     this.visionBaseUrl = '',
     this.visionApiKey,
     this.visionModel = '',
+    this.imageGenModel = '',
   });
 
   /// Sandbox root for this session — all file tools must resolve inside it.
@@ -86,6 +87,9 @@ class ToolContext {
 
   /// Static multimodal model id used by the image analysis tool.
   final String visionModel;
+
+  /// Static image-generation route id (Siber gateway only).
+  final String imageGenModel;
 }
 
 /// A single callable tool exposed to the model.

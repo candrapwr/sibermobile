@@ -274,7 +274,7 @@ class ChatController extends ChangeNotifier {
     final registry = buildRegistry(
       _settings,
       webSearchAvailable: hasWebSearchConfig,
-      imageAnalysisAvailable: _settings.usesSiberGateway && hasApiKey,
+      imageToolsAvailable: _settings.usesSiberGateway && hasApiKey,
     );
     final savedUsage = _session?.usage ?? const SessionUsage();
     final agent = Agent(
@@ -323,6 +323,7 @@ class ChatController extends ChangeNotifier {
       visionBaseUrl: siberGateway ? _settings.baseUrl : '',
       visionApiKey: siberGateway ? _apiKey : null,
       visionModel: siberGateway ? siberVisionModel : '',
+      imageGenModel: siberGateway ? siberImageGenModel : '',
     );
   }
 

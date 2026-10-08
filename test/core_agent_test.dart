@@ -307,7 +307,7 @@ void main() {
     test('exposes the supported core and optional tools', () {
       final names = allTools.map((tool) => tool.name).toSet();
 
-      expect(names, hasLength(34));
+      expect(names, hasLength(35));
       expect(
         names,
         containsAll([
@@ -316,6 +316,7 @@ void main() {
           'web_search',
           'http_request',
           'analyze_image',
+          'generate_image',
           'shell_exec',
           'get_device_info',
           'take_photo',
@@ -406,7 +407,7 @@ void main() {
       expect(AppSettings().disabledTools.contains('web_search'), isFalse);
     });
 
-    test('image analysis exists only through the Siber gateway', () {
+    test('image tools exist only through the Siber gateway', () {
       // Not on the registry without the gateway, regardless of toggles.
       expect(
         buildRegistry(
@@ -414,19 +415,26 @@ void main() {
         ).contains('analyze_image'),
         isFalse,
       );
-      // With the gateway flag it registers and follows the toggle.
+      // With the gateway flag they register and follow the toggle.
       expect(
         buildRegistry(
           AppSettings(disabledTools: const {}),
-          imageAnalysisAvailable: true,
+          imageToolsAvailable: true,
         ).contains('analyze_image'),
         isTrue,
       );
       expect(
         buildRegistry(
-          AppSettings(disabledTools: const {'analyze_image'}),
-          imageAnalysisAvailable: true,
-        ).contains('analyze_image'),
+          AppSettings(disabledTools: const {}),
+          imageToolsAvailable: true,
+        ).contains('generate_image'),
+        isTrue,
+      );
+      expect(
+        buildRegistry(
+          AppSettings(disabledTools: const {'generate_image'}),
+          imageToolsAvailable: true,
+        ).contains('generate_image'),
         isFalse,
       );
     });

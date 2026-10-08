@@ -25,6 +25,11 @@ const String siberWebSearchBaseUrl = 'https://api.idsiber.com/v1/generic/exa';
 /// Static multimodal model used by the built-in image analysis tool when the
 /// provider is the Siber gateway.
 const String siberVisionModel = 'ds-vision-flash';
+
+/// Static image-generation ROUTE id on the Siber gateway (a route configured
+/// in the gateway dashboard, not an upstream model), used by the built-in
+/// generate_image tool.
+const String siberImageGenModel = 'ds-imagen';
 const String defaultWebBaseUrl = 'https://api.exa.ai';
 
 /// Reasoning-effort values forwarded to gateways that understand the field.

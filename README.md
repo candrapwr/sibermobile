@@ -114,7 +114,7 @@ memang Anda kontrol.
 - **Tool inti selalu aktif** — `get_current_time` membaca jam perangkat,
   `ask_user` membuka pertanyaan/opsi dari AI, dan `send_file_to_user` membuat
   file hasil kerja siap disimpan ke HP; semuanya tidak bisa dinonaktifkan.
-- **31 tool opsional** untuk perangkat dan web: info perangkat, baterai,
+- **32 tool opsional** untuk perangkat dan web: info perangkat, baterai,
   jaringan, GPS, kamera/media, TTS/STT, notifikasi, kontak, aplikasi,
   NFC, file sandbox, dan pencarian web. Asisten tetap berguna
   penuh tanpa memakai tool opsional apa pun.
@@ -127,11 +127,15 @@ memang Anda kontrol.
   tag lengkap (UID, teknologi, NDEF) lalu tukar frame mentah apa pun via
   `nfc_transceive` (APDU untuk kartu IsoDep, perintah native untuk NfcA/B/F/V)
   plus tulis NDEF, sehingga AI dapat menjelajahi tag secara bebas.
-- **Analisa gambar (vision)** — `analyze_image` hanya tersedia lewat Siber
-  gateway: model statik `ds-vision-flash`, endpoint + token sama dengan
-  provider, tanpa konfigurasi. Input bisa path foto hasil `take_photo`,
-  URL https, atau data URL — cocok untuk OCR, deskripsi, dan ekstraksi
-  chart/tabel.
+- **Analisa & generasi gambar (via Siber gateway)** — `analyze_image`
+  (model statik `ds-vision-flash`) membaca isi foto hasil `take_photo`, URL,
+  atau data URL — OCR, deskripsi, ekstraksi chart/tabel. `generate_image`
+  (model statik `ds-imagen`, kontrak `/images/generations` ala SiberGate)
+  membuat gambar baru dari prompt atau mengedit gambar di sandbox sesi
+  (aspect ratio, resolusi 1k/2k, negative prompt); hasil tersimpan ke
+  workdir dan bisa langsung ditawarkan ke user dengan `send_file_to_user`
+  (tampil sebagai pratinjau inline). Endpoint + token sama dengan provider,
+  tanpa konfigurasi, hanya untuk Base URL idsiber.com.
 - **Shell exec tanpa root** — `shell_exec` menjalankan perintah `sh -c` di
   perangkat sebagai user aplikasi (murni `dart:io`): diagnostik (`ps`, `getprop`,
   `netstat`, `df`, `pm`), baca `/proc`//`/system`, dan eksplorasi bebas path
@@ -404,7 +408,7 @@ tetap digunakan untuk menyimpan konfigurasi provider dan agent.
 
 ## Daftar tool
 
-3 tool inti dan 31 tool opsional dalam 15 kategori. Tool inti tidak bisa
+3 tool inti dan 32 tool opsional dalam 15 kategori. Tool inti tidak bisa
 dinonaktifkan. Sebagian besar tool perangkat (Device, Battery, Camera, Speech,
 Apps, NFC, analisa jaringan, shell) **nonaktif secara default** dan baru masuk schema
 model setelah diaktifkan di layar *Tool perangkat*. Kolom 🔒 = `requiresApproval`
@@ -450,6 +454,7 @@ permission runtime yang diminta otomatis saat tool dipanggil.
 | `take_photo` | Ambil foto (depan/belakang), simpan ke working dir | Camera |
 | `pick_gallery_image` | Pilih gambar dari galeri, salin ke working dir | Photos/Storage |
 | `analyze_image` | Analisa gambar dengan vision model (`ds-vision-flash`): deskripsi, OCR, ekstraksi chart/tabel. Hanya via Siber gateway (idsiber.com) — tanpa itu tool tidak muncul | – |
+| `generate_image` | Buat gambar baru dari prompt / edit gambar sandbox (`ds-imagen`, aspect ratio, 1k/2k, negative prompt); hasil disimpan ke workdir. Hanya via Siber gateway | – |
 
 ### Media
 | Tool | Fungsi | Izin |

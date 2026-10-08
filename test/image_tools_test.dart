@@ -14,6 +14,7 @@ void main() {
         visionBaseUrl: 'https://api.idsiber.com/v1',
         visionApiKey: 'provider-key',
         visionModel: siberVisionModel,
+        imageGenModel: siberImageGenModel,
       );
 
   test('builds the multimodal chat/completions request like siberflow',
@@ -138,5 +139,145 @@ void main() {
     );
     expect(err, contains('503'));
     expect(err, contains('model overloaded'));
+  });
+
+  test('generate_image posts the canonical sibergate body and saves b64',
+      () async {
+    final dir = await Directory.systemTemp.createTemp('imggen');
+    final pngBytes = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+    );
+    Uri? sentUrl;
+    Map<String, String> sentHeaders = {};
+    Object? sentBody;
+
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('/images/generations')) {
+        sentUrl = request.url;
+        sentHeaders = request.headers;
+        sentBody = jsonDecode(request.body);
+        return http.Response(
+          jsonEncode({
+            'created': 1,
+            'data': [
+              {
+                'b64_json':
+                    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+              },
+            ],
+          }),
+          200,
+        );
+      }
+      fail('unexpected request to ${request.url}');
+    });
+
+    final out = await GenerateImageTool(client: client).execute(
+      {
+        'prompt': 'Kucing astronot kartun',
+        'outputPath': 'kucing',
+        'resolution': '2k',
+        'negative_prompt': 'blur',
+      },
+      gatewayContext(dir.path),
+    );
+    final res = jsonDecode(out) as Map<String, dynamic>;
+
+    expect(res['ok'], isTrue);
+    expect(res['path'], 'kucing.png');
+    expect(res['mode'], 'generate');
+    expect(res['bytes'], pngBytes.length);
+    expect(File('${dir.path}/kucing.png').existsSync(), isTrue);
+    expect(File('${dir.path}/kucing.png').readAsBytesSync(), pngBytes);
+
+    expect(
+      sentUrl.toString(),
+      'https://api.idsiber.com/v1/images/generations',
+    );
+    expect(sentHeaders['authorization'], 'Bearer provider-key');
+    final body = sentBody as Map<String, dynamic>;
+    expect(body['model'], 'ds-imagen');
+    expect(body['prompt'], 'Kucing astronot kartun');
+    expect(body['n'], 1);
+    expect(body['aspect_ratio'], '16:9');
+    expect(body['resolution'], '2k');
+    expect(body['negative_prompt'], 'blur');
+    expect(body.containsKey('image'), isFalse);
+  });
+
+  test('generate_image downloads url results and infers the extension',
+      () async {
+    final dir = await Directory.systemTemp.createTemp('imggen-url');
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('/images/generations')) {
+        return http.Response(
+          jsonEncode({
+            'data': [
+              {'url': 'https://cdn.example.com/img/picture.webp'},
+            ],
+          }),
+          200,
+        );
+      }
+      if (request.url.host == 'cdn.example.com') {
+        return http.Response.bytes([1, 2, 3, 4], 200);
+      }
+      fail('unexpected request to ${request.url}');
+    });
+
+    final out = await GenerateImageTool(client: client).execute(
+      {'prompt': 'pemandangan'},
+      gatewayContext(dir.path),
+    );
+    final res = jsonDecode(out) as Map<String, dynamic>;
+
+    expect(res['ok'], isTrue);
+    expect(res['path'], startsWith('generated-images/'));
+    expect(res['path'], endsWith('.webp'));
+    final saved = File('${dir.path}/${res['path']}');
+    expect(saved.existsSync(), isTrue);
+    expect(saved.readAsBytesSync(), [1, 2, 3, 4]);
+  });
+
+  test('edit mode inlines the source image as a data URL', () async {
+    final dir = await Directory.systemTemp.createTemp('imggen-edit');
+    final uploads = Directory('${dir.path}/uploads')..createSync();
+    final png = File('${uploads.path}/base.png');
+    await png.writeAsBytes([0x89, 0x50, 0x4E, 0x47, 1, 2]);
+
+    Object? sentBody;
+    final client = MockClient((request) async {
+      sentBody = jsonDecode(request.body);
+      return http.Response(
+        jsonEncode({
+          'data': [
+            {
+              'b64_json':
+                  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+            },
+          ],
+        }),
+        200,
+      );
+    });
+
+    final out = await GenerateImageTool(client: client).execute(
+      {'prompt': 'buat versi malam', 'image': 'uploads/base.png'},
+      gatewayContext(dir.path),
+    );
+    final res = jsonDecode(out) as Map<String, dynamic>;
+
+    expect(res['mode'], 'edit');
+    final image = (sentBody as Map)['image'] as String;
+    expect(image, startsWith('data:image/png;base64,'));
+  });
+
+  test('generate_image without gateway config explains the restriction',
+      () async {
+    final out = await GenerateImageTool().execute(
+      {'prompt': 'x'},
+      ToolContext(workDir: '/tmp'),
+    );
+    expect(out, contains('idsiber.com'));
   });
 }

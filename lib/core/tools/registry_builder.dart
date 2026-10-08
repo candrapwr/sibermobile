@@ -93,17 +93,18 @@ Map<String, List<Tool>> toolsByCategory() {
 /// optional tools listed in `settings.disabledTools` are skipped.
 ///
 /// `webSearchAvailable` gates `web_search` (configured manually or via the
-/// Siber gateway); `imageAnalysisAvailable` gates `analyze_image`, which only
-/// exists for the Siber gateway provider.
+/// Siber gateway); `imageToolsAvailable` gates the Siber-gateway-only image
+/// tools (`analyze_image`, `generate_image`).
 ToolRegistry buildRegistry(
   AppSettings settings, {
   bool webSearchAvailable = false,
-  bool imageAnalysisAvailable = false,
+  bool imageToolsAvailable = false,
 }) {
   final registry = ToolRegistry();
   for (final tool in allTools) {
     if (tool.name == 'web_search' && !webSearchAvailable) continue;
-    if (tool.name == 'analyze_image' && !imageAnalysisAvailable) continue;
+    if (tool.name == 'analyze_image' && !imageToolsAvailable) continue;
+    if (tool.name == 'generate_image' && !imageToolsAvailable) continue;
     if (!tool.isCoreTool && settings.disabledTools.contains(tool.name)) {
       continue;
     }
