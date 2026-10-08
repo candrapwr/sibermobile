@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:sibermobile/app/file_uploads.dart';
 import 'package:sibermobile/core/agent/agent.dart';
+import 'package:sibermobile/core/agent/prompts.dart';
 import 'package:sibermobile/core/ai/openai_compatible_provider.dart';
 import 'package:sibermobile/core/ai/sse.dart';
 import 'package:sibermobile/core/ai/provider.dart';
@@ -605,6 +606,23 @@ void main() {
       }).maxTokens,
       4096,
     );
+  });
+
+  test('system prompt carries the session workspace path when known', () {
+    const workDir = '/data/user/0/com.idsiber.sibermobile/files/work/s1';
+    final withPath = buildSystemPrompt(
+      enabledToolNames: const ['get_current_time'],
+      workDir: workDir,
+    );
+    expect(withPath, contains(workDir));
+    expect(withPath, contains('Session workspace'));
+
+    // Without a workdir (e.g. before the first message) the section is
+    // omitted entirely instead of mentioning an empty path.
+    final withoutPath = buildSystemPrompt(
+      enabledToolNames: const ['get_current_time'],
+    );
+    expect(withoutPath, isNot(contains('Session workspace')));
   });
 
   group('File uploads', () {

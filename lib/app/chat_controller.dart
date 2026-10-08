@@ -281,7 +281,10 @@ class ChatController extends ChangeNotifier {
       initialTotalUsage: savedUsage.total,
       initialLastUsage: savedUsage.last,
       lastPromptTokens: savedUsage.last.promptTokens,
-      systemPrompt: buildSystemPrompt(enabledToolNames: registry.names),
+      systemPrompt: buildSystemPrompt(
+        enabledToolNames: registry.names,
+        workDir: _workDir,
+      ),
     );
     // Restore history into the fresh agent.
     if (_session != null) {

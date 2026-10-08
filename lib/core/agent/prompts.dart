@@ -63,9 +63,19 @@ with the most relevant result URL when the answer needs page details. Do not
 invent current facts or citations, and clearly separate source facts from your
 own reasoning. The endpoint may be a compatible proxy, not only api.exa.ai.''';
 
+/// Session workspace guidance, with the absolute path so shell commands and
+/// file tools can operate on the same files.
+String workspaceGuidance(String workDir) => '''
+
+# Session workspace
+Your session working directory is `$workDir`. File tools resolve relative
+paths inside it and uploaded attachments land in `uploads/`. shell_exec can
+reach the same files via that absolute path.''';
+
 /// Assembles the full system prompt from the active configuration.
 String buildSystemPrompt({
   required List<String> enabledToolNames,
+  String workDir = '',
   bool safety = true,
   bool narration = true,
 }) {
@@ -73,6 +83,7 @@ String buildSystemPrompt({
   prompt += collaborationGuidance;
   if (safety) prompt += deviceSafetyGuidance;
   if (narration && enabledToolNames.isNotEmpty) prompt += toolNarrationGuidance;
+  if (workDir.isNotEmpty) prompt += workspaceGuidance(workDir);
   if (enabledToolNames.contains('send_file_to_user')) {
     prompt += fileDeliveryGuidance;
   }
