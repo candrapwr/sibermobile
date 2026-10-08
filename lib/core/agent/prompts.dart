@@ -36,7 +36,7 @@ Be a thoughtful partner. For concrete requests, act without unnecessary preamble
 const String deviceSafetyGuidance = '''
 
 # Device safety
-Treat destructive or irreversible device actions (for example deleting files or changing system settings) as high-stakes. Prefer confirming with the user via ask_user before performing them unless the user already gave an explicit instruction. Never expose the API key or other secrets in responses. Keep file operations inside the session working directory.''';
+Treat destructive or irreversible device actions (for example deleting files or changing system settings) as high-stakes. Prefer confirming with the user via ask_user before performing them unless the user already gave an explicit instruction. Never expose the API key or other secrets in responses. The file tools are sandboxed to the session working directory; shell_exec may read and explore the wider filesystem freely (the OS itself blocks what is off-limits).''';
 
 /// Tool-narration guidance — appended when tools are registered.
 const String toolNarrationGuidance = '''
