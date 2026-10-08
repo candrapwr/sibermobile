@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -358,6 +359,7 @@ class ToolCallBlockView extends StatelessWidget {
     required this.item,
     this.onSaveFile,
     this.resolveFile,
+    this.resolveImageFile,
   });
 
   final ToolCallBlock item;
@@ -365,6 +367,10 @@ class ToolCallBlockView extends StatelessWidget {
 
   /// Resolves a shared file to its absolute sandbox path for image previews.
   final File? Function(SharedFileInfo file)? resolveFile;
+
+  /// Resolves a raw tool-argument path (e.g. analyze_image's `image`) to its
+  /// sandbox file, for the live scanning preview.
+  final File? Function(String path)? resolveImageFile;
 
   @override
   Widget build(BuildContext context) {
@@ -419,6 +425,17 @@ class ToolCallBlockView extends StatelessWidget {
               ),
             ],
           ),
+          if (running && item.name == 'analyze_image') ...[
+            const SizedBox(height: 8),
+            _ScanningImagePreview(
+              source: _toolArgs(item)['image']?.toString(),
+              resolveImageFile: resolveImageFile,
+            ),
+          ],
+          if (running && item.name == 'generate_image') ...[
+            const SizedBox(height: 8),
+            const _GeneratingImagePlaceholder(),
+          ],
           if (sharedFile != null && !running) ...[
             const SizedBox(height: 8),
             _SharedFileCard(
@@ -466,6 +483,282 @@ class ToolCallBlockView extends StatelessWidget {
           ),
         );
     }
+  }
+}
+
+/// Parses a tool block's JSON arguments (best effort, empty on failure).
+Map<String, dynamic> _toolArgs(ToolCallBlock item) {
+  try {
+    final decoded = jsonDecode(item.arguments);
+    if (decoded is Map) return decoded.cast<String, dynamic>();
+  } catch (_) {}
+  return const {};
+}
+
+/// Live preview while `analyze_image` runs: the target image with a
+/// sweeping scan line and corner brackets. Falls back to a dark scanning
+/// panel when the source cannot be displayed (missing file, exotic format).
+class _ScanningImagePreview extends StatefulWidget {
+  const _ScanningImagePreview({required this.source, this.resolveImageFile});
+
+  final String? source;
+  final File? Function(String path)? resolveImageFile;
+
+  @override
+  State<_ScanningImagePreview> createState() => _ScanningImagePreviewState();
+}
+
+class _ScanningImagePreviewState extends State<_ScanningImagePreview>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _scan = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1900),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _scan.dispose();
+    super.dispose();
+  }
+
+  Widget? _buildImage() {
+    final src = widget.source?.trim();
+    if (src == null || src.isEmpty) return null;
+    Widget fallback(BuildContext _, Object _, StackTrace? _) => const SizedBox.shrink();
+    if (src.startsWith('data:image/')) {
+      final comma = src.indexOf(',');
+      if (comma < 0) return null;
+      try {
+        final bytes = base64Decode(src.substring(comma + 1));
+        return Image.memory(
+          bytes,
+          width: double.infinity,
+          height: 210,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          errorBuilder: fallback,
+        );
+      } catch (_) {
+        return null;
+      }
+    }
+    final lower = src.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return Image.network(
+        src,
+        width: double.infinity,
+        height: 210,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: fallback,
+      );
+    }
+    final file = widget.resolveImageFile?.call(src);
+    if (file == null) return null;
+    return Image.file(
+      file,
+      width: double.infinity,
+      height: 210,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      errorBuilder: fallback,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final image = _buildImage();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 210,
+        color: colors.surfaceContainerHighest,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (image != null)
+              image
+            else
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.image_search_rounded, size: 30, color: colors.primary),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Memindai gambar…',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            // Slight dark veil so the sweep reads on bright images.
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.22),
+                    Colors.black.withValues(alpha: 0.10),
+                    Colors.black.withValues(alpha: 0.22),
+                  ],
+                ),
+              ),
+            ),
+            // The sweeping scan band + bright center line.
+            AnimatedBuilder(
+              animation: _scan,
+              builder: (context, _) {
+                final dy = -1.0 + 2.0 * _scan.value;
+                return Align(
+                  alignment: Alignment(0, dy.clamp(-1.0, 1.0)),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              colors.primary.withValues(alpha: 0.0),
+                              colors.primary.withValues(alpha: 0.32),
+                              colors.primary.withValues(alpha: 0.0),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: double.infinity,
+                        height: 2,
+                        color: colors.primary.withValues(alpha: 0.95),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            // Corner brackets for the "scanner" look.
+            _bracket(colors, alignment: Alignment.topLeft),
+            _bracket(colors, alignment: Alignment.topRight),
+            _bracket(colors, alignment: Alignment.bottomLeft),
+            _bracket(colors, alignment: Alignment.bottomRight),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bracket(ColorScheme colors, {required Alignment alignment}) {
+    return Align(
+      alignment: alignment,
+      child: SizedBox(
+        width: 18,
+        height: 18,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              top: alignment.y < 0
+                  ? BorderSide(color: colors.primary, width: 2)
+                  : BorderSide.none,
+              bottom: alignment.y > 0
+                  ? BorderSide(color: colors.primary, width: 2)
+                  : BorderSide.none,
+              left: alignment.x < 0
+                  ? BorderSide(color: colors.primary, width: 2)
+                  : BorderSide.none,
+              right: alignment.x > 0
+                  ? BorderSide(color: colors.primary, width: 2)
+                  : BorderSide.none,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Live placeholder while `generate_image` runs: a shimmering image frame
+/// with a pulsing sparkle. Replaced by the normal finished tool card (with
+/// its inline image preview) once the tool completes.
+class _GeneratingImagePlaceholder extends StatefulWidget {
+  const _GeneratingImagePlaceholder();
+
+  @override
+  State<_GeneratingImagePlaceholder> createState() =>
+      _GeneratingImagePlaceholderState();
+}
+
+class _GeneratingImagePlaceholderState extends State<_GeneratingImagePlaceholder>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shimmer = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _shimmer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final base = colors.surfaceContainerHighest;
+    final highlight = colors.primary.withValues(alpha: 0.22);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: AnimatedBuilder(
+          animation: _shimmer,
+          builder: (context, _) {
+            final t = _shimmer.value;
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment(-1.0 + 2.0 * t, -0.6),
+                  end: Alignment(0.0 + 2.0 * t, 0.6),
+                  colors: [base, highlight, base],
+                ),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Transform.scale(
+                      scale: 1.0 + 0.12 * math.sin(t * 2 * math.pi).abs(),
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        size: 30,
+                        color: colors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Menghasilkan gambar…',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 }
 

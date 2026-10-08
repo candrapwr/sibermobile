@@ -271,6 +271,26 @@ class ChatController extends ChangeNotifier {
     }
   }
 
+  /// Resolves a raw tool-argument image path (e.g. analyze_image's `image`)
+  /// to its sandbox file, for live previews while the tool runs. Data/http
+  /// sources are not file-backed and return null.
+  File? toolImageSource(String rawPath) {
+    final path = rawPath.trim();
+    if (_workDir.isEmpty ||
+        path.isEmpty ||
+        path.startsWith('data:') ||
+        path.toLowerCase().startsWith('http://') ||
+        path.toLowerCase().startsWith('https://')) {
+      return null;
+    }
+    try {
+      final source = File(resolveWithin(_workDir, path));
+      return source.existsSync() ? source : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Uri?> saveSharedFile(SharedFileInfo file) async {
     final session = _session;
     if (session == null) {

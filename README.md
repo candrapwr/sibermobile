@@ -135,7 +135,9 @@ memang Anda kontrol.
   (aspect ratio, resolusi 1k/2k, negative prompt); hasil tersimpan ke
   workdir dan bisa langsung ditawarkan ke user dengan `send_file_to_user`
   (tampil sebagai pratinjau inline). Endpoint + token sama dengan provider,
-  tanpa konfigurasi, hanya untuk Base URL idsiber.com.
+  tanpa konfigurasi, hanya untuk Base URL idsiber.com. Saat berjalan, tool
+  menampilkan animasi live: *scan line* menyapu gambar untuk analisa, dan
+  frame *shimmer* berdenyut untuk generasi.
 - **Shell exec tanpa root** — `shell_exec` menjalankan perintah `sh -c` di
   perangkat sebagai user aplikasi (murni `dart:io`): diagnostik (`ps`, `getprop`,
   `netstat`, `df`, `pm`), baca `/proc`//`/system`, dan eksplorasi bebas path
