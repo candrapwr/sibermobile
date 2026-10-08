@@ -143,13 +143,17 @@ memang Anda kontrol.
   `netstat`, `df`, `pm`), baca `/proc`//`/system`, dan eksplorasi bebas path
   absolut ke mana pun yang boleh dibaca user aplikasi — dengan timeout,
   pembatasan output, dan nonaktif secara default.
-- **Tetap hidup di latar belakang saat memproses** — selama satu turn
-  berjalan, notifikasi kecil "Sedang memproses" (foreground service
-  `dataSync`) menjaga proses tetap hidup: layar mati, diminimalkan, bahkan
-  di-swipe dari Recents tidak memutus streaming/tool/generasi. Tekan Back
-  saat sibuk perlu dua kali (anti-tutup tak sengaja). Kalau proses tetap
-  terputus (force close/baterai habis), pesan terakhir otomatis dikembalikan
-  ke kolom ketik saat sesi dibuka kembali.
+- **Tetap hidup walau jendela ditutup saat memproses** — engine Flutter
+  dimiliki di level proses (cached engine di `SiberApplication`), dan selama
+  satu turn berjalan foreground service `dataSync` dengan notifikasi kecil
+  "Sedang memproses" menjaga proses tetap hidup. Hasilnya: layar mati,
+  diminimalkan, Back-keluar, di-swipe dari Recents, bahkan "Clear all" tidak
+  memutus streaming/tool/generasi — membuka kembali app menyambung UI tepat
+  di keadaan yang sama. Tekan Back saat sibuk tetap perlu dua kali (anti-
+  tutup tak sengaja). Kalau proses mati karena force-stop/baterai habis,
+  pesan terakhir otomatis dikembalikan ke kolom ketik saat sesi dibuka.
+  Catatan: operasi yang butuh Activity (reader-mode NFC, dialog permission)
+  akan melaporkan error bila dipanggil saat app tertutup — bukan crash.
 - **Intelijen jaringan bebas** — `wifi_scan` (semua AP terlihat + flag BSSID
   acak untuk deteksi rogue AP/evil twin), `cell_scan` (operator SIM vs
   jaringan terdaftar, identitas + sinyal semua sel — bahan analisa deteksi
