@@ -24,18 +24,13 @@ class ShellExecTool extends Tool {
 
   @override
   String get description =>
-      'Run a shell command on the device through `sh -c` and return stdout, '
-      'stderr, exit code and duration. This runs WITHOUT root, as the app\'s '
-      'own unprivileged user — free to explore anything that user can read: '
-      'ls, cat, ps -A, getprop, uname -a, df, netstat, ping, pm list '
-      'packages, settings get, and filesystem locations like /proc, /system, '
-      '/sdcard (storage permission permitting) via absolute paths. su, '
-      'dumpsys, other apps\' private data and system changes are blocked by '
-      'the OS — report that honestly instead of retrying. Use workingDir to '
-      'choose where the command starts (default "/"); each call is its own '
-      'shell, so cd only matters within one command line. Interactive '
-      'commands (top, vi) will hang until the timeout kills them. Only run '
-      'commands the user asked about.';
+      'Run any shell command on the device via `sh -c` and get back stdout, '
+      'stderr, exit code and duration. Explore freely — you decide what to '
+      'run; if a command fails, its error output comes back in the result. '
+      'Runs unprivileged (no root). Use workingDir to pick the starting '
+      'directory (default "/"); each call is its own shell, so cd only '
+      'matters within a single command line. Commands that never exit are '
+      'killed by the timeout (default 20s).';
 
   @override
   String get category => 'System';
