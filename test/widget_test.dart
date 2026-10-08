@@ -383,6 +383,72 @@ void main() {
     expect(find.text('Simpan'), findsOneWidget);
   });
 
+  test('interrupted turn detection returns the last user message as a draft',
+      () {
+    // A history ending in a user message = the app died before the reply.
+    expect(
+      ChatController.interruptedDraftFor([
+        Message(role: Role.user, content: 'buatkan logo'),
+      ]),
+      'buatkan logo',
+    );
+    // displayContent (what the user saw) wins over the API content.
+    expect(
+      ChatController.interruptedDraftFor([
+        Message(role: Role.assistant, content: 'siap'),
+        Message(
+          role: Role.user,
+          content: '[lampiran]',
+          displayContent: 'analisa file ini',
+        ),
+      ]),
+      'analisa file ini',
+    );
+    // A completed turn (assistant reply persisted) is not interrupted.
+    expect(
+      ChatController.interruptedDraftFor([
+        Message(role: Role.user, content: 'halo'),
+        Message(role: Role.assistant, content: 'hai'),
+      ]),
+      isNull,
+    );
+    expect(ChatController.interruptedDraftFor(const []), isNull);
+  });
+
+  testWidgets('Composer prefills a cut-off turn without clobbering typing',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Composer(
+            onSend: (_, _) {},
+            onStop: () {},
+            busy: false,
+            initialText: 'kirim ulang ini',
+          ),
+        ),
+      ),
+    );
+    expect(find.text('kirim ulang ini'), findsOneWidget);
+
+    // Once the user has their own text, a new draft never overwrites it.
+    await tester.enterText(find.byType(TextField), 'tulisanku');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Composer(
+            onSend: (_, _) {},
+            onStop: () {},
+            busy: false,
+            initialText: 'draf baru',
+          ),
+        ),
+      ),
+    );
+    expect(find.text('tulisanku'), findsOneWidget);
+    expect(find.text('draf baru'), findsNothing);
+  });
+
   testWidgets('opens ask_user only after ChatScreen finishes building', (
     tester,
   ) async {

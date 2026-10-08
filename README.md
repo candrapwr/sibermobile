@@ -141,6 +141,13 @@ memang Anda kontrol.
   `netstat`, `df`, `pm`), baca `/proc`//`/system`, dan eksplorasi bebas path
   absolut ke mana pun yang boleh dibaca user aplikasi — dengan timeout,
   pembatasan output, dan nonaktif secara default.
+- **Tetap hidup di latar belakang saat memproses** — selama satu turn
+  berjalan, notifikasi kecil "Sedang memproses" (foreground service
+  `dataSync`) menjaga proses tetap hidup: layar mati, diminimalkan, bahkan
+  di-swipe dari Recents tidak memutus streaming/tool/generasi. Tekan Back
+  saat sibuk perlu dua kali (anti-tutup tak sengaja). Kalau proses tetap
+  terputus (force close/baterai habis), pesan terakhir otomatis dikembalikan
+  ke kolom ketik saat sesi dibuka kembali.
 - **Intelijen jaringan bebas** — `wifi_scan` (semua AP terlihat + flag BSSID
   acak untuk deteksi rogue AP/evil twin), `cell_scan` (operator SIM vs
   jaringan terdaftar, identitas + sinyal semua sel — bahan analisa deteksi
@@ -661,6 +668,7 @@ membutuhkannya jalan (lewat `ensurePermission()`).
 | `NFC` | `nfc_analyze`, `nfc_transceive`, `nfc_write_ndef` |
 | `READ_PHONE_STATE` | `cell_scan` (identitas operator/sel) |
 | `VIBRATE` | getar notifikasi (`show_notification`) |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC` | menjaga proses saat turn berjalan di latar belakang |
 
 Blok `<queries>` mendeklarasikan intent yang dilihat aplikasi (`VIEW`,
 `PROCESS_TEXT`, `RecognitionService`, `TTS_SERVICE`) — wajib sejak Android 11

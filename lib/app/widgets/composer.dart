@@ -10,6 +10,7 @@ class Composer extends StatefulWidget {
     required this.onSend,
     required this.onStop,
     required this.busy,
+    this.initialText = '',
     this.enabled = true,
     this.hintText = 'Tulis pesan…',
     this.statusText,
@@ -23,6 +24,11 @@ class Composer extends StatefulWidget {
   final void Function(String text, List<PendingFileUpload> attachments) onSend;
   final VoidCallback onStop;
   final bool busy;
+
+  /// Prefills the field once (e.g. a turn cut off before its reply, offered
+  /// back for an easy resend). Only applied while the field is empty so it
+  /// never clobbers what the user is typing.
+  final String initialText;
   final bool enabled;
   final String hintText;
   final String? statusText;
@@ -48,6 +54,17 @@ class _ComposerState extends State<Composer> {
     super.initState();
     _controller.addListener(_onTextChanged);
     _focus.addListener(_onFocusChanged);
+    if (widget.initialText.isNotEmpty) _controller.text = widget.initialText;
+  }
+
+  @override
+  void didUpdateWidget(covariant Composer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialText.isNotEmpty &&
+        oldWidget.initialText != widget.initialText &&
+        _controller.text.isEmpty) {
+      _controller.text = widget.initialText;
+    }
   }
 
   void _onTextChanged() {

@@ -169,6 +169,19 @@ class DeviceBridge {
     return _asMap(await _channel.invokeMethod('cellScan'));
   }
 
+  /// Starts/stops the persistent "still working" foreground service so the
+  /// process survives screen-off, doze and swipe-from-recents while a turn
+  /// runs. Best effort — failures are swallowed on purpose.
+  static Future<void> setBusy({required bool busy, String? text}) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('setBusy', {
+        'busy': busy,
+        if (text != null && text.isNotEmpty) 'text': text,
+      });
+    } catch (_) {}
+  }
+
   static Map<String, dynamic> _asMap(Object? value) => value is Map
       ? value.map((k, v) => MapEntry(k.toString(), v))
       : <String, dynamic>{};

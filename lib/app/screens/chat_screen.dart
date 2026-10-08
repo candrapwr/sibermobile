@@ -31,6 +31,8 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _followOutput = true;
   bool _scrollScheduled = false;
   bool _wasBusy = false;
+  bool _backArmed = false;
+  Timer? _backArmTimer;
   bool _jumpingToBottom = false;
 
   static const double _followThreshold = 96;
@@ -135,7 +137,30 @@ class _ChatScreenState extends State<ChatScreen> {
     final items = controller.items;
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return PopScope(
+      // While a turn is running, an accidental back press must not kill the
+      // engine: require a second press within the window to really exit.
+      canPop: !controller.isBusy || _backArmed,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || _backArmed) return;
+        setState(() => _backArmed = true);
+        _backArmTimer?.cancel();
+        _backArmTimer = Timer(const Duration(seconds: 4), () {
+          if (mounted) setState(() => _backArmed = false);
+        });
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              duration: Duration(seconds: 4),
+              content: Text(
+                'Masih memproses. Tekan kembali sekali lagi untuk keluar, '
+                'atau minimalkan aplikasi — proses lanjut di latar belakang.',
+              ),
+            ),
+          );
+      },
+      child: Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         toolbarHeight: 64,
@@ -265,6 +290,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 onSend: (text, attachments) =>
                     controller.send(text, attachments: attachments),
                 onStop: controller.stop,
+                initialText: controller.pendingRetryText ?? '',
                 busy: controller.isBusy,
                 enabled: configured,
                 statusText: controller.activityText,
@@ -278,6 +304,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

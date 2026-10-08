@@ -137,6 +137,14 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
 
             "cellScan" -> cellScan(result)
 
+            "setBusy" -> {
+                setBusyService(
+                    call.argument<Boolean>("busy") ?: false,
+                    call.argument<String>("text"),
+                )
+                result.success(true)
+            }
+
             else -> result.notImplemented()
         }
     }
@@ -724,6 +732,27 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
 
     private fun bytesToHex(bytes: ByteArray): String =
         bytes.joinToString("") { "%02x".format(it) }
+
+    /** Starts/stops the keep-alive foreground service while a turn runs. */
+    private fun setBusyService(busy: Boolean, text: String?) {
+        try {
+            val intent = Intent(context, BusyService::class.java)
+            if (busy) {
+                intent.action = BusyService.ACTION_START
+                intent.putExtra(BusyService.EXTRA_TEXT, text ?: "Sedang memproses…")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } else {
+                intent.action = BusyService.ACTION_STOP
+                context.startService(intent)
+            }
+        } catch (_: Exception) {
+            // Best effort: a failed start must never break the chat turn.
+        }
+    }
 
     // ── Network analysis ───────────────────────────────────────────────────
     //

@@ -16,11 +16,13 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../core/agent/agent.dart';
 import '../core/agent/prompts.dart';
 import '../core/ai/openai_compatible_provider.dart';
 import '../core/ai/types.dart';
+import '../core/native/device_bridge.dart';
 import '../core/session/session_store.dart';
 import '../core/settings/settings.dart';
 import '../core/tools/registry.dart';
@@ -202,6 +204,17 @@ class ChatController extends ChangeNotifier {
     _items
       ..clear()
       ..addAll(_historyToItems(loaded.messages));
+    final draft = interruptedDraftFor(loaded.messages);
+    if (draft != null) {
+      _retryDraft = draft;
+      _items.add(SystemNotice(
+        id: _nextId(),
+        text: 'Balasan terakhir terputus sebelum selesai (aplikasi tertutup '
+            'saat memproses). Pesan terakhir dikembalikan ke kolom ketik — '
+            'kirim ulang bila perlu.',
+        isError: true,
+      ));
+    }
     _bundle?.provider.close();
     _bundle = null;
     _rebuildAgent();
@@ -211,6 +224,41 @@ class ChatController extends ChangeNotifier {
   /// Opens the Android system save dialog and copies a shared session file to
   /// the location selected by the user. The file is read only after its path
   /// is resolved back inside the current session sandbox.
+  /// Text of a turn that was cut off before any reply was persisted; offered
+  /// back in the composer when the session reopens.
+  String? _retryDraft;
+  String? get pendingRetryText => _retryDraft;
+
+  /// A persisted history ending in a user message means the app died before
+  /// the reply completed — return that message for a one-tap resend.
+  @visibleForTesting
+  static String? interruptedDraftFor(List<Message> messages) {
+    if (messages.isEmpty) return null;
+    final last = messages.last;
+    if (last.role != Role.user) return null;
+    final text = (last.displayContent ?? last.content).trim();
+    return text.isEmpty ? null : text;
+  }
+
+  bool _busyPermissionAsked = false;
+
+  /// Starts the keep-alive foreground service for the duration of a turn and,
+  /// once, asks for notification permission so its status is visible (the
+  /// service keeps the process alive either way).
+  void _startBusyService() {
+    unawaited(
+      DeviceBridge.setBusy(busy: true, text: 'Sedang memproses permintaan…'),
+    );
+    if (_busyPermissionAsked || !Platform.isAndroid) return;
+    _busyPermissionAsked = true;
+    unawaited(
+      Permission.notification.status.then<void>((status) async {
+        if (status.isGranted || status.isPermanentlyDenied) return;
+        await Permission.notification.request();
+      }),
+    );
+  }
+
   /// Absolute, sandbox-checked file behind a shared-file card, when it still
   /// exists. Used by the chat UI to preview images inline.
   File? sharedFileSource(SharedFileInfo file) {
@@ -390,6 +438,7 @@ class ChatController extends ChangeNotifier {
     _busy = true;
     _activityText = 'Menghubungi ${_settings.model}…';
     _cancelToken = CancellationToken();
+    _startBusyService();
     notifyListeners();
 
     // A live assistant bubble that content deltas append to. Tool calls insert
@@ -539,6 +588,7 @@ class ChatController extends ChangeNotifier {
       _activityText = null;
       _compactingContext = false;
       _cancelToken = null;
+      unawaited(DeviceBridge.setBusy(busy: false));
       await _persist();
       notifyListeners();
     }
