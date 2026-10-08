@@ -24,6 +24,7 @@ import 'hardware/media_tools.dart';
 import 'hardware/network_analysis_tools.dart';
 import 'hardware/nfc_tools.dart';
 import 'hardware/notification_tools.dart';
+import 'hardware/shell_tools.dart';
 import 'hardware/speech_tools.dart';
 
 /// Every tool the app can expose, including tools the user cannot turn off.
@@ -41,6 +42,7 @@ final List<Tool> allTools = <Tool>[
   ...mediaTools,
   ...speechTools,
   ...notificationTools,
+  ...shellTools,
   ...contactTools,
   ...appTools,
   ...nfcTools,
@@ -71,6 +73,7 @@ Map<String, List<Tool>> toolsByCategory() {
     'Media',
     'Speech',
     'Notification',
+    'System',
     'Contacts',
     'Apps',
     'NFC',

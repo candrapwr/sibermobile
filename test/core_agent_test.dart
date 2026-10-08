@@ -306,7 +306,7 @@ void main() {
     test('exposes the supported core and optional tools', () {
       final names = allTools.map((tool) => tool.name).toSet();
 
-      expect(names, hasLength(33));
+      expect(names, hasLength(34));
       expect(
         names,
         containsAll([
@@ -315,6 +315,7 @@ void main() {
           'web_search',
           'http_request',
           'analyze_image',
+          'shell_exec',
           'get_device_info',
           'take_photo',
           'nfc_status',
@@ -452,6 +453,7 @@ void main() {
         'nfc_analyze',
         'nfc_transceive',
         'nfc_write_ndef',
+        'shell_exec',
       ]) {
         expect(registry.contains(off), isFalse, reason: '$off should default off');
       }

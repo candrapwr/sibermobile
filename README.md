@@ -39,7 +39,7 @@ Android.
 | Pemeriksaan | Hasil |
 |---|---|
 | `flutter analyze` | ✅ 0 issue |
-| `flutter test` | ✅ 62 test lolos |
+| `flutter test` | ✅ 68 test lolos |
 | `flutter build apk --release` (clean build) | ✅ berhasil, tanpa warning Kotlin/Java |
 | Uji runtime di perangkat/emulator | ⚠️ belum dilakukan |
 
@@ -114,7 +114,7 @@ memang Anda kontrol.
 - **Tool inti selalu aktif** — `get_current_time` membaca jam perangkat,
   `ask_user` membuka pertanyaan/opsi dari AI, dan `send_file_to_user` membuat
   file hasil kerja siap disimpan ke HP; semuanya tidak bisa dinonaktifkan.
-- **30 tool opsional** untuk perangkat dan web: info perangkat, baterai,
+- **31 tool opsional** untuk perangkat dan web: info perangkat, baterai,
   jaringan, GPS, kamera/media, TTS/STT, notifikasi, kontak, aplikasi,
   NFC, file sandbox, dan pencarian web. Asisten tetap berguna
   penuh tanpa memakai tool opsional apa pun.
@@ -132,6 +132,11 @@ memang Anda kontrol.
   provider, tanpa konfigurasi. Input bisa path foto hasil `take_photo`,
   URL https, atau data URL — cocok untuk OCR, deskripsi, dan ekstraksi
   chart/tabel.
+- **Shell exec tanpa root** — `shell_exec` menjalankan perintah `sh -c` di
+  perangkat sebagai user aplikasi (murni `dart:io`): diagnostik (`ps`, `getprop`,
+  `netstat`, `df`, `pm`), baca `/proc`//`/system`, dan eksplorasi bebas path
+  absolut ke mana pun yang boleh dibaca user aplikasi — dengan timeout,
+  pembatasan output, dan nonaktif secara default.
 - **Intelijen jaringan bebas** — `wifi_scan` (semua AP terlihat + flag BSSID
   acak untuk deteksi rogue AP/evil twin), `cell_scan` (operator SIM vs
   jaringan terdaftar, identitas + sinyal semua sel — bahan analisa deteksi
@@ -306,7 +311,7 @@ JDK 17+.
 ```bash
 flutter pub get
 flutter analyze          # harus 0 issue
-flutter test             # 62 test
+flutter test             # 68 test
 flutter run              # perlu device/emulator Android (API 24+)
 flutter build apk --debug
 ```
@@ -397,9 +402,9 @@ tetap digunakan untuk menyimpan konfigurasi provider dan agent.
 
 ## Daftar tool
 
-3 tool inti dan 30 tool opsional dalam 14 kategori. Tool inti tidak bisa
+3 tool inti dan 31 tool opsional dalam 15 kategori. Tool inti tidak bisa
 dinonaktifkan. Sebagian besar tool perangkat (Device, Battery, Camera, Speech,
-Apps, NFC, analisa jaringan) **nonaktif secara default** dan baru masuk schema
+Apps, NFC, analisa jaringan, shell) **nonaktif secara default** dan baru masuk schema
 model setelah diaktifkan di layar *Tool perangkat*. Kolom 🔒 = `requiresApproval`
 (dialog konfirmasi dulu bila "Minta izin aksi berisiko" aktif). Kolom **Izin** =
 permission runtime yang diminta otomatis saat tool dipanggil.
@@ -461,6 +466,11 @@ permission runtime yang diminta otomatis saat tool dipanggil.
 | Tool | Fungsi | Izin |
 |---|---|---|
 | `show_notification` | Kirim notifikasi lokal (`title`, `body`, `id`) | Notification (Android 13+) |
+
+### System
+| Tool | Fungsi | Izin |
+|---|---|---|
+| `shell_exec` 🔒 | Jalankan perintah `sh -c` tanpa root sebagai user aplikasi; direktori kerja bebas (default `/`), timeout + batas output. Tanpa root: tidak ada `su`/`dumpsys`, data aplikasi lain terkunci OS | – |
 
 ### Contacts
 | Tool | Fungsi | Izin |
@@ -740,7 +750,7 @@ mengenali skema `android-37.0`, naikkan ke 13.x lalu jalankan
 ## Testing
 
 ```bash
-flutter test                        # semua (62 test)
+flutter test                        # semua (68 test)
 flutter test test/core_agent_test.dart
 flutter test test/widget_test.dart
 ```

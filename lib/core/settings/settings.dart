@@ -66,6 +66,8 @@ const Set<String> defaultDisabledTools = {
   'nfc_analyze',
   'nfc_transceive',
   'nfc_write_ndef',
+  // Shell (power tool).
+  'shell_exec',
 };
 
 class AppSettings {
