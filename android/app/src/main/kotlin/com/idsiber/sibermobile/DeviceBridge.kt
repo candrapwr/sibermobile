@@ -738,6 +738,9 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
         try {
             val intent = Intent(context, BusyService::class.java)
             if (busy) {
+                // A turn always starts from the foreground UI, so launching
+                // the foreground service from the application context is
+                // allowed even on Android 12+.
                 intent.action = BusyService.ACTION_START
                 intent.putExtra(BusyService.EXTRA_TEXT, text ?: "Sedang memproses…")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -746,8 +749,9 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
                     context.startService(intent)
                 }
             } else {
-                intent.action = BusyService.ACTION_STOP
-                context.startService(intent)
+                // The turn may end while the app is in the background, where
+                // startService() is forbidden — stopService() always works.
+                context.stopService(intent)
             }
         } catch (_: Exception) {
             // Best effort: a failed start must never break the chat turn.

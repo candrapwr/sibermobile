@@ -1,25 +1,16 @@
 package com.idsiber.sibermobile
 
-import android.content.Intent
 import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.MethodChannel
 
+/**
+ * Attaches to the process-level engine owned by [SiberApplication]. A
+ * destroyed activity no longer kills the engine, so closing the window
+ * (back-exit, swipe, clear-all) leaves an in-flight turn running — kept
+ * alive by BusyService — and reopening the app resumes the same UI state.
+ *
+ * DeviceBridge is registered on the engine in SiberApplication; nothing to
+ * do here beyond binding the cached engine.
+ */
 class MainActivity : FlutterActivity() {
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        // The bridge needs the Activity context: NFC reader mode and opening
-        // settings screens are activity-scoped.
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            "sibermobile/device",
-        ).setMethodCallHandler(DeviceBridge(this))
-    }
-
-    override fun onDestroy() {
-        // The engine dies with the activity, so an in-flight turn cannot
-        // continue — never leave the keep-alive notification behind.
-        stopService(Intent(this, BusyService::class.java))
-        super.onDestroy()
-    }
+    override fun getCachedEngineId(): String? = SiberApplication.ENGINE_ID
 }
