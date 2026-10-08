@@ -36,9 +36,6 @@ class ShellExecTool extends Tool {
   String get category => 'System';
 
   @override
-  bool get requiresApproval => true;
-
-  @override
   Map<String, dynamic> get parameters => const {
     'type': 'object',
     'properties': <String, dynamic>{

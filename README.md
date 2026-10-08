@@ -470,7 +470,7 @@ permission runtime yang diminta otomatis saat tool dipanggil.
 ### System
 | Tool | Fungsi | Izin |
 |---|---|---|
-| `shell_exec` 🔒 | Jalankan perintah `sh -c` tanpa root sebagai user aplikasi; direktori kerja bebas (default `/`), timeout + batas output. Tanpa root: tidak ada `su`/`dumpsys`, data aplikasi lain terkunci OS | – |
+| `shell_exec` | Jalankan perintah `sh -c` tanpa root sebagai user aplikasi; direktori kerja bebas (default `/`), timeout + batas output. Tanpa root: tidak ada `su`/`dumpsys`, data aplikasi lain terkunci OS | – |
 
 ### Contacts
 | Tool | Fungsi | Izin |
