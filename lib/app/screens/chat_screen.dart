@@ -254,6 +254,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               ToolCallBlock() => ToolCallBlockView(
                                 item: item,
                                 onSaveFile: controller.saveSharedFile,
+                                resolveFile: controller.sharedFileSource,
                               ),
                             },
                           );

@@ -211,6 +211,18 @@ class ChatController extends ChangeNotifier {
   /// Opens the Android system save dialog and copies a shared session file to
   /// the location selected by the user. The file is read only after its path
   /// is resolved back inside the current session sandbox.
+  /// Absolute, sandbox-checked file behind a shared-file card, when it still
+  /// exists. Used by the chat UI to preview images inline.
+  File? sharedFileSource(SharedFileInfo file) {
+    if (_workDir.isEmpty) return null;
+    try {
+      final source = File(resolveWithin(_workDir, file.relativePath));
+      return source.existsSync() ? source : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Uri?> saveSharedFile(SharedFileInfo file) async {
     final session = _session;
     if (session == null) {

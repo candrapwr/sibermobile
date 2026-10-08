@@ -6,6 +6,7 @@
 // hanging. shared_preferences is backed by an in-memory mock.
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -284,6 +285,102 @@ void main() {
     await tester.pumpAndSettle();
     expect(selected?.relativePath, 'exports/report.pdf');
     expect(find.text('File berhasil disimpan ke perangkat.'), findsOneWidget);
+  });
+
+  testWidgets('image files sent by the assistant render inline with a viewer',
+      (tester) async {
+    // Real file IO must run inside runAsync: testWidgets' fake async zone
+    // never completes raw IO futures.
+    late final File png;
+    await tester.runAsync(() async {
+      final dir = await Directory.systemTemp.createTemp('imgcard');
+      png = File('${dir.path}/chart.png');
+      // Canonical 1x1 transparent PNG so Image.file can actually decode.
+      await png.writeAsBytes(const [
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+        0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
+        0x0D, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x62, 0x00, 0x01, 0x00, 0x00,
+        0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
+        0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+      ]);
+    });
+    final tool =
+        ToolCallBlock(
+            id: 'img-tool-test',
+            name: 'send_file_to_user',
+            toolCallId: 'call-img-1',
+            arguments: '{"path":"exports/chart.png"}',
+          )
+          ..result = jsonEncode({
+            'ok': true,
+            'type': 'file',
+            'path': 'exports/chart.png',
+            'name': 'chart.png',
+            'bytes': 68,
+            'mimeType': 'image/png',
+          })
+          ..status = ToolCallStatus.done;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ToolCallBlockView(item: tool, resolveFile: (_) => png),
+        ),
+      ),
+    );
+    // Give the decoder a real-async window, then draw the decoded frame.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 120)),
+    );
+    await tester.pump();
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.text('chart.png'), findsOneWidget);
+    expect(find.text('Simpan'), findsOneWidget);
+
+    // Tapping the preview opens the zoomable fullscreen viewer.
+    await tester.tap(find.byType(Image));
+    await tester.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    expect(find.byType(Image), findsNWidgets(2));
+
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsNothing);
+  });
+
+  testWidgets('non-image files keep the compact card without a preview', (
+    tester,
+  ) async {
+    final tool =
+        ToolCallBlock(
+            id: 'pdf-tool-test-2',
+            name: 'send_file_to_user',
+            toolCallId: 'call-pdf-2',
+            arguments: '{"path":"exports/report.pdf"}',
+          )
+          ..result = jsonEncode({
+            'ok': true,
+            'type': 'file',
+            'path': 'exports/report.pdf',
+            'name': 'report.pdf',
+            'bytes': 2048,
+            'mimeType': 'application/pdf',
+          })
+          ..status = ToolCallStatus.done;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ToolCallBlockView(item: tool, resolveFile: (_) => null),
+        ),
+      ),
+    );
+
+    expect(find.byType(Image), findsNothing);
+    expect(find.byIcon(Icons.insert_drive_file_outlined), findsOneWidget);
+    expect(find.text('Simpan'), findsOneWidget);
   });
 
   testWidgets('opens ask_user only after ChatScreen finishes building', (

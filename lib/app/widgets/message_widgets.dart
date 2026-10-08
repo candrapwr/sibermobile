@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -352,10 +353,18 @@ class SystemNoticeView extends StatelessWidget {
 }
 
 class ToolCallBlockView extends StatelessWidget {
-  const ToolCallBlockView({super.key, required this.item, this.onSaveFile});
+  const ToolCallBlockView({
+    super.key,
+    required this.item,
+    this.onSaveFile,
+    this.resolveFile,
+  });
 
   final ToolCallBlock item;
   final Future<Uri?> Function(SharedFileInfo file)? onSaveFile;
+
+  /// Resolves a shared file to its absolute sandbox path for image previews.
+  final File? Function(SharedFileInfo file)? resolveFile;
 
   @override
   Widget build(BuildContext context) {
@@ -417,6 +426,7 @@ class ToolCallBlockView extends StatelessWidget {
               onSave: onSaveFile == null
                   ? null
                   : () => _saveSharedFile(context, sharedFile),
+              resolveFile: resolveFile,
             ),
           ],
         ],
@@ -460,15 +470,42 @@ class ToolCallBlockView extends StatelessWidget {
 }
 
 class _SharedFileCard extends StatelessWidget {
-  const _SharedFileCard({required this.file, required this.onSave});
+  const _SharedFileCard({required this.file, required this.onSave, this.resolveFile});
 
   final SharedFileInfo file;
   final VoidCallback? onSave;
+
+  /// Optional resolver for inline image previews (absolute sandbox path).
+  final File? Function(SharedFileInfo file)? resolveFile;
+
+  static const _imageExtensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'};
+
+  bool get _isImage =>
+      file.mimeType.startsWith('image/') ||
+      _imageExtensions.any(file.name.toLowerCase().endsWith);
+
+  File? get _imageSource =>
+      _isImage ? resolveFile?.call(file) : null;
+
+  void _openFullScreen(BuildContext context, File source) {
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        opaque: false,
+        barrierColor: Colors.black87,
+        pageBuilder: (_, animation, _) => FadeTransition(
+          opacity: animation,
+          child: _FullScreenImage(name: file.name, source: source),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final source = _imageSource;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(9, 8, 8, 8),
@@ -477,47 +514,135 @@ class _SharedFileCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.7)),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Icon(
-            Icons.insert_drive_file_outlined,
-            color: colors.primary,
-            size: 21,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  file.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+          if (source != null) ...[
+            GestureDetector(
+              onTap: () => _openFullScreen(context, source),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(7),
+                child: Image.file(
+                  source,
+                  width: double.infinity,
+                  height: 230,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${_formatFileSize(file.bytes)} · siap disimpan',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: [
+              Icon(
+                _isImage
+                    ? Icons.image_outlined
+                    : Icons.insert_drive_file_outlined,
+                color: colors.primary,
+                size: 21,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      file.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_formatFileSize(file.bytes)} · siap disimpan',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          FilledButton.tonalIcon(
-            onPressed: onSave,
-            icon: const Icon(Icons.download_rounded, size: 17),
-            label: const Text('Simpan'),
-            style: FilledButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.tonalIcon(
+                onPressed: onSave,
+                icon: const Icon(Icons.download_rounded, size: 17),
+                label: const Text('Simpan'),
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Zoomable fullscreen viewer for shared images.
+class _FullScreenImage extends StatelessWidget {
+  const _FullScreenImage({required this.name, required this.source});
+
+  final String name;
+  final File source;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      // Tap anywhere (outside the pinch area) closes; the pop button gives
+      // an explicit target too.
+      onTap: () => Navigator.of(context).pop(),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                maxScale: 6,
+                child: Image.file(
+                  source,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Icon(
+                    Icons.broken_image_outlined,
+                    color: Colors.white70,
+                    size: 56,
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton.filledTonal(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

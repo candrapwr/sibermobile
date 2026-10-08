@@ -152,6 +152,8 @@ memang Anda kontrol.
 - **Kirim file ke pengguna** — AI dapat menawarkan file hasil kerja melalui
   kartu riwayat dengan nama, ukuran, dan tombol **Simpan**. Pemilihan lokasi
   dilakukan lewat system file picker Android; file tidak dikirim ke server lain.
+  File gambar tampil sebagai **pratinjau inline** yang bisa di-tap untuk
+  penampil layar penuh dengan zoom.
 - **Status tool call ringkas** — setiap pemanggilan tool hanya menampilkan nama
   dan status Menunggu/Menjalankan/Berhasil/Gagal; argumen dan hasil tetap
   diproses agent tanpa membebani UI.
