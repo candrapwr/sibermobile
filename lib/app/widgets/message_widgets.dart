@@ -156,73 +156,70 @@ class _AssistantMarkdown extends StatelessWidget {
     );
 
     return MarkdownStyleSheet(
-        p: body,
-        h1: theme.textTheme.headlineSmall?.copyWith(
-          fontWeight: FontWeight.w800,
-          height: 1.25,
+      p: body,
+      h1: theme.textTheme.headlineSmall?.copyWith(
+        fontWeight: FontWeight.w800,
+        height: 1.25,
+      ),
+      h2: theme.textTheme.titleLarge?.copyWith(
+        fontWeight: FontWeight.w800,
+        height: 1.3,
+      ),
+      h3: theme.textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.w800,
+        height: 1.35,
+      ),
+      h4: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+      strong: body?.copyWith(fontWeight: FontWeight.w800),
+      em: body?.copyWith(fontStyle: FontStyle.italic),
+      a: body?.copyWith(
+        color: colors.primary,
+        decoration: TextDecoration.underline,
+        decorationColor: colors.primary.withValues(alpha: 0.55),
+      ),
+      blockquote: body?.copyWith(color: colors.onSurfaceVariant),
+      blockquotePadding: const EdgeInsets.fromLTRB(10, 7, 9, 7),
+      blockquoteDecoration: BoxDecoration(
+        color: colors.primary.withValues(alpha: 0.06),
+        border: Border(left: BorderSide(color: colors.primary, width: 3)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      code: theme.textTheme.bodySmall?.copyWith(
+        fontFamily: 'monospace',
+        fontSize: 12.5,
+        height: 1.5,
+        color: colors.onSurface,
+        backgroundColor: codeBackground,
+      ),
+      codeblockPadding: const EdgeInsets.all(10),
+      codeblockDecoration: BoxDecoration(
+        color: codeBackground,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: colors.outlineVariant.withValues(alpha: 0.55),
         ),
-        h2: theme.textTheme.titleLarge?.copyWith(
-          fontWeight: FontWeight.w800,
-          height: 1.3,
-        ),
-        h3: theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w800,
-          height: 1.35,
-        ),
-        h4: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-        strong: body?.copyWith(fontWeight: FontWeight.w800),
-        em: body?.copyWith(fontStyle: FontStyle.italic),
-        a: body?.copyWith(
-          color: colors.primary,
-          decoration: TextDecoration.underline,
-          decorationColor: colors.primary.withValues(alpha: 0.55),
-        ),
-        blockquote: body?.copyWith(color: colors.onSurfaceVariant),
-        blockquotePadding: const EdgeInsets.fromLTRB(10, 7, 9, 7),
-        blockquoteDecoration: BoxDecoration(
-          color: colors.primary.withValues(alpha: 0.06),
-          border: Border(left: BorderSide(color: colors.primary, width: 3)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        code: theme.textTheme.bodySmall?.copyWith(
-          fontFamily: 'monospace',
-          fontSize: 12.5,
-          height: 1.5,
-          color: colors.onSurface,
-          backgroundColor: codeBackground,
-        ),
-        codeblockPadding: const EdgeInsets.all(10),
-        codeblockDecoration: BoxDecoration(
-          color: codeBackground,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: colors.outlineVariant.withValues(alpha: 0.55),
-          ),
-        ),
-        listBullet: body?.copyWith(
-          color: colors.primary,
-          fontWeight: FontWeight.w800,
-        ),
-        tableHead: theme.textTheme.bodySmall?.copyWith(
-          fontWeight: FontWeight.w800,
-        ),
-        tableBody: theme.textTheme.bodySmall?.copyWith(height: 1.4),
-        tableBorder: TableBorder.all(
-          color: colors.outlineVariant.withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        tableCellsPadding: const EdgeInsets.symmetric(
-          horizontal: 7,
-          vertical: 5,
-        ),
-        horizontalRuleDecoration: BoxDecoration(
-          border: Border(top: BorderSide(color: colors.outlineVariant)),
-        ),
-        pPadding: const EdgeInsets.only(bottom: 4),
-        h1Padding: const EdgeInsets.only(top: 6, bottom: 5),
-        h2Padding: const EdgeInsets.only(top: 6, bottom: 4),
-        h3Padding: const EdgeInsets.only(top: 4, bottom: 3),
-        blockSpacing: 6,
+      ),
+      listBullet: body?.copyWith(
+        color: colors.primary,
+        fontWeight: FontWeight.w800,
+      ),
+      tableHead: theme.textTheme.bodySmall?.copyWith(
+        fontWeight: FontWeight.w800,
+      ),
+      tableBody: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+      tableBorder: TableBorder.all(
+        color: colors.outlineVariant.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      tableCellsPadding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+      horizontalRuleDecoration: BoxDecoration(
+        border: Border(top: BorderSide(color: colors.outlineVariant)),
+      ),
+      pPadding: const EdgeInsets.only(bottom: 4),
+      h1Padding: const EdgeInsets.only(top: 6, bottom: 5),
+      h2Padding: const EdgeInsets.only(top: 6, bottom: 4),
+      h3Padding: const EdgeInsets.only(top: 4, bottom: 3),
+      blockSpacing: 6,
     );
   }
 
@@ -524,45 +521,37 @@ class _ScanningImagePreviewState extends State<_ScanningImagePreview>
   Widget? _buildImage() {
     final src = widget.source?.trim();
     if (src == null || src.isEmpty) return null;
-    Widget fallback(BuildContext _, Object _, StackTrace? _) => const SizedBox.shrink();
+    Widget fallback(BuildContext _, Object _, StackTrace? _) =>
+        const SizedBox.shrink();
+    // Contain with a height cap: the whole image stays visible and sizes
+    // the scanning box by its natural aspect ratio.
+    Widget full(ImageProvider provider) => ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 380),
+      child: Image(
+        image: provider,
+        width: double.infinity,
+        fit: BoxFit.contain,
+        gaplessPlayback: true,
+        errorBuilder: fallback,
+      ),
+    );
     if (src.startsWith('data:image/')) {
       final comma = src.indexOf(',');
       if (comma < 0) return null;
       try {
         final bytes = base64Decode(src.substring(comma + 1));
-        return Image.memory(
-          bytes,
-          width: double.infinity,
-          height: 210,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          errorBuilder: fallback,
-        );
+        return full(MemoryImage(bytes));
       } catch (_) {
         return null;
       }
     }
     final lower = src.toLowerCase();
     if (lower.startsWith('http://') || lower.startsWith('https://')) {
-      return Image.network(
-        src,
-        width: double.infinity,
-        height: 210,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        errorBuilder: fallback,
-      );
+      return full(NetworkImage(src));
     }
     final file = widget.resolveImageFile?.call(src);
     if (file == null) return null;
-    return Image.file(
-      file,
-      width: double.infinity,
-      height: 210,
-      fit: BoxFit.cover,
-      gaplessPlayback: true,
-      errorBuilder: fallback,
-    );
+    return full(FileImage(file));
   }
 
   @override
@@ -573,40 +562,50 @@ class _ScanningImagePreviewState extends State<_ScanningImagePreview>
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        height: 210,
         color: colors.surfaceContainerHighest,
         child: Stack(
-          fit: StackFit.expand,
+          // The image is the sizing (non-positioned) child; overlays fill
+          // whatever height its aspect ratio produces. The no-image
+          // fallback keeps the fixed panel.
           children: [
             if (image != null)
               image
             else
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.image_search_rounded, size: 30, color: colors.primary),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Memindai gambar…',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: colors.onSurfaceVariant,
+              SizedBox(
+                height: 210,
+                width: double.infinity,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.image_search_rounded,
+                        size: 30,
+                        color: colors.primary,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        'Memindai gambar…',
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(color: colors.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             // Slight dark veil so the sweep reads on bright images.
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.22),
-                    Colors.black.withValues(alpha: 0.10),
-                    Colors.black.withValues(alpha: 0.22),
-                  ],
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.22),
+                      Colors.black.withValues(alpha: 0.10),
+                      Colors.black.withValues(alpha: 0.22),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -696,7 +695,8 @@ class _GeneratingImagePlaceholder extends StatefulWidget {
       _GeneratingImagePlaceholderState();
 }
 
-class _GeneratingImagePlaceholderState extends State<_GeneratingImagePlaceholder>
+class _GeneratingImagePlaceholderState
+    extends State<_GeneratingImagePlaceholder>
     with SingleTickerProviderStateMixin {
   late final AnimationController _shimmer = AnimationController(
     vsync: this,
@@ -763,7 +763,11 @@ class _GeneratingImagePlaceholderState extends State<_GeneratingImagePlaceholder
 }
 
 class _SharedFileCard extends StatelessWidget {
-  const _SharedFileCard({required this.file, required this.onSave, this.resolveFile});
+  const _SharedFileCard({
+    required this.file,
+    required this.onSave,
+    this.resolveFile,
+  });
 
   final SharedFileInfo file;
   final VoidCallback? onSave;
@@ -771,14 +775,20 @@ class _SharedFileCard extends StatelessWidget {
   /// Optional resolver for inline image previews (absolute sandbox path).
   final File? Function(SharedFileInfo file)? resolveFile;
 
-  static const _imageExtensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'};
+  static const _imageExtensions = {
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.webp',
+    '.bmp',
+  };
 
   bool get _isImage =>
       file.mimeType.startsWith('image/') ||
       _imageExtensions.any(file.name.toLowerCase().endsWith);
 
-  File? get _imageSource =>
-      _isImage ? resolveFile?.call(file) : null;
+  File? get _imageSource => _isImage ? resolveFile?.call(file) : null;
 
   void _openFullScreen(BuildContext context, File source) {
     Navigator.of(context).push(
@@ -864,7 +874,10 @@ class _SharedFileCard extends StatelessWidget {
                 label: const Text('Simpan'),
                 style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
                 ),
               ),
             ],
@@ -924,9 +937,9 @@ class _FullScreenImage extends StatelessWidget {
                           name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: Colors.white,
-                          ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.labelLarge?.copyWith(color: Colors.white),
                         ),
                       ),
                     ],
