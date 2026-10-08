@@ -2,6 +2,7 @@ package com.idsiber.sibermobile
 
 import android.app.Application
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodChannel
 
@@ -27,6 +28,9 @@ class SiberApplication : Application() {
         engine.dartExecutor.executeDartEntrypoint(
             DartExecutor.DartEntrypoint.createDefault(),
         )
+        // MainActivity looks the engine up in the static cache — publishing
+        // it here is what makes the cached-engine attach work.
+        FlutterEngineCache.getInstance().put(ENGINE_ID, engine)
         MethodChannel(engine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler(DeviceBridge(this))
     }
