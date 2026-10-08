@@ -134,6 +134,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
 
 bool _isAvailable(ChatController controller, Tool tool) {
   if (tool.name == 'web_search') return controller.hasWebSearchConfig;
+  if (tool.name == 'analyze_image') {
+    return controller.settings.usesSiberGateway && controller.hasApiKey;
+  }
   return true;
 }
 
@@ -323,6 +326,9 @@ class _ToolRow extends StatelessWidget {
     final theme = Theme.of(context);
     final description = !available && tool.name == 'web_search'
         ? 'Isi endpoint dan API key Exa di Pengaturan terlebih dahulu.'
+        : !available && tool.name == 'analyze_image'
+        ? 'Hanya tersedia saat provider adalah Siber gateway (Base URL '
+              'mengandung idsiber.com).'
         : tool.description.split('.').first;
     return InkWell(
       onTap: tool.isCoreTool || !available ? null : () => onChanged(!enabled),

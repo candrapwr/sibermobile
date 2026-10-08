@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 
+    <!-- ══ Cellular survey (cell_scan: operator/cell identity) ═════════════ -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+
     <!-- ══ Camera / microphone (take_photo, speech_to_text) ═══════════════ -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
@@ -34,12 +37,13 @@
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
 
     <!-- ══ Misc system features ═══════════════════════════════════════════ -->
+    <!-- NFC (nfc_analyze / nfc_transceive / nfc_write_ndef). -->
+    <uses-permission android:name="android.permission.NFC"/>
+    <uses-feature android:name="android.hardware.nfc" android:required="false"/>
     <!-- List / launch installed apps (Android 11+ package visibility). -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission"
         xmlns:tools="http://schemas.android.com/tools"/>
-    <!-- Open system settings screens. -->
-    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
 
     <application
         android:label="SiberMobile"

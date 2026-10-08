@@ -399,48 +399,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: 'Search web dan baca konten halaman dengan aman',
                 ),
                 const SizedBox(height: 14),
-                TextField(
-                  controller: _webBaseUrl,
-                  keyboardType: TextInputType.url,
-                  autocorrect: false,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    labelText: 'Endpoint web',
-                    hintText: 'https://api.exa.ai',
-                    prefixIcon: Icon(Icons.link_rounded),
-                    helperText:
-                        'Aplikasi otomatis menambahkan /search dan /contents. Bisa memakai proxy kompatibel Exa.',
-                    helperMaxLines: 2,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _webApiKey,
-                  obscureText: _obscureWebKey,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    labelText: 'Exa API key',
-                    prefixIcon: const Icon(Icons.key_outlined),
-                    helperText: _hasStoredWebKey
-                        ? 'Key web aman tersimpan. Kosongkan untuk tidak mengubah.'
-                        : 'Opsional sampai ingin mengaktifkan tool Web search.',
-                    helperMaxLines: 2,
-                    suffixIcon: IconButton(
-                      tooltip: _obscureWebKey
-                          ? 'Tampilkan key'
-                          : 'Sembunyikan key',
-                      icon: Icon(
-                        _obscureWebKey
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                if (controller.settings.usesSiberGateway) ...[
+                  // Siber gateway mode: the static Exa-compatible endpoint on
+                  // the gateway is used with the provider key — nothing to
+                  // configure here.
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withValues(
+                        alpha: 0.08,
                       ),
-                      onPressed: () =>
-                          setState(() => _obscureWebKey = !_obscureWebKey),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.bolt_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Otomatis aktif via Siber gateway.\n'
+                            'Endpoint: $siberWebSearchBaseUrl\n'
+                            'Token: API key provider (sama, tidak perlu '
+                            'setting terpisah).',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
+                ] else ...[
+                  TextField(
+                    controller: _webBaseUrl,
+                    keyboardType: TextInputType.url,
+                    autocorrect: false,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'Endpoint web',
+                      hintText: 'https://api.exa.ai',
+                      prefixIcon: Icon(Icons.link_rounded),
+                      helperText:
+                          'Aplikasi otomatis menambahkan /search dan /contents. Bisa memakai proxy kompatibel Exa.',
+                      helperMaxLines: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _webApiKey,
+                    obscureText: _obscureWebKey,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Exa API key',
+                      prefixIcon: const Icon(Icons.key_outlined),
+                      helperText: _hasStoredWebKey
+                          ? 'Key web aman tersimpan. Kosongkan untuk tidak mengubah.'
+                          : 'Opsional sampai ingin mengaktifkan tool Web search.',
+                      helperMaxLines: 2,
+                      suffixIcon: IconButton(
+                        tooltip: _obscureWebKey
+                            ? 'Tampilkan key'
+                            : 'Sembunyikan key',
+                        icon: Icon(
+                          _obscureWebKey
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                        onPressed: () => setState(
+                          () => _obscureWebKey = !_obscureWebKey,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,

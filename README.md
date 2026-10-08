@@ -39,8 +39,8 @@ Android.
 | Pemeriksaan | Hasil |
 |---|---|
 | `flutter analyze` | ✅ 0 issue |
-| `flutter test` | ✅ 34 test lolos |
-| `flutter build apk --debug` | ✅ berhasil |
+| `flutter test` | ✅ 62 test lolos |
+| `flutter build apk --release` (clean build) | ✅ berhasil, tanpa warning Kotlin/Java |
 | Uji runtime di perangkat/emulator | ⚠️ belum dilakukan |
 
 ---
@@ -99,6 +99,10 @@ memang Anda kontrol.
 ## Fitur
 
 - **Chat streaming** — teks AI muncul per-token (SSE), bukan setelah selesai.
+- **Tabel Markdown responsif** — tabel di jawaban AI dirender dengan lebar
+  kolom alami (tidak dipaksa menyempit) di dalam container scroll horizontal;
+  tingginya mengikuti chat sehingga tabel panjang dibaca dengan scroll chat
+  biasa.
 - **Compact context** — saat prompt mencapai ambang context window, AI membuat
   ringkasan turn lama sendiri dan tetap mempertahankan turn terbaru secara
   utuh. Riwayat asli tidak dihapus dari sesi.
@@ -110,10 +114,29 @@ memang Anda kontrol.
 - **Tool inti selalu aktif** — `get_current_time` membaca jam perangkat,
   `ask_user` membuka pertanyaan/opsi dari AI, dan `send_file_to_user` membuat
   file hasil kerja siap disimpan ke HP; semuanya tidak bisa dinonaktifkan.
-- **24 tool opsional** untuk perangkat dan web: info perangkat, baterai,
-  jaringan, GPS, kamera/media, TTS/STT, getar, notifikasi, kontak, aplikasi,
-  file sandbox, interaksi sistem, dan pencarian web. Asisten tetap berguna
+- **30 tool opsional** untuk perangkat dan web: info perangkat, baterai,
+  jaringan, GPS, kamera/media, TTS/STT, notifikasi, kontak, aplikasi,
+  NFC, file sandbox, dan pencarian web. Asisten tetap berguna
   penuh tanpa memakai tool opsional apa pun.
+- **Klien HTTP bebas ala curl** — `http_request` (murni `dart:io`, tanpa
+  plugin): method, header, cookie, body teks/JSON, redirect, dan timeout
+  bisa diatur AI untuk memanggil API apa pun yang diminta user; respons
+  lengkap (status, header, cookie server, isi terpotong, timing) kembali ke
+  model.
+- **Analisa NFC bebas** — dibangun tanpa plugin lewat `DeviceBridge`: profil
+  tag lengkap (UID, teknologi, NDEF) lalu tukar frame mentah apa pun via
+  `nfc_transceive` (APDU untuk kartu IsoDep, perintah native untuk NfcA/B/F/V)
+  plus tulis NDEF, sehingga AI dapat menjelajahi tag secara bebas.
+- **Analisa gambar (vision)** — `analyze_image` hanya tersedia lewat Siber
+  gateway: model statik `ds-vision-flash`, endpoint + token sama dengan
+  provider, tanpa konfigurasi. Input bisa path foto hasil `take_photo`,
+  URL https, atau data URL — cocok untuk OCR, deskripsi, dan ekstraksi
+  chart/tabel.
+- **Intelijen jaringan bebas** — `wifi_scan` (semua AP terlihat + flag BSSID
+  acak untuk deteksi rogue AP/evil twin), `cell_scan` (operator SIM vs
+  jaringan terdaftar, identitas + sinyal semua sel — bahan analisa deteksi
+  BTS palsu/IMSI catcher), dan `net_probe` (ping/DNS/TCP aktif). Semua native
+  via `DeviceBridge` tanpa plugin baru.
 - **Web search Exa-compatible** — `web_search` memiliki mode `search` untuk
   menemukan sumber dan mode `content` untuk membaca URL. Endpoint bisa
   `https://api.exa.ai` atau proxy kompatibel; tool baru aktif setelah endpoint,
@@ -129,11 +152,14 @@ memang Anda kontrol.
   diproses agent tanpa membebani UI.
 - **Branding SiberMobile** — logo yang sama dipakai di dalam aplikasi, launcher
   legacy/adaptive, ikon bulat, dan splash screen Android terang/gelap.
-- **Persetujuan aksi berisiko** — aksi seperti hapus file, TTS/STT, atau membuka
-  pengaturan sistem memunculkan dialog konfirmasi dulu. Bisa dimatikan di
+- **Persetujuan aksi berisiko** — aksi seperti hapus file, TTS/STT, atau scan
+  NFC/jaringan memunculkan dialog konfirmasi dulu. Bisa dimatikan di
   Pengaturan.
 - **Toggle per tool opsional** — matikan tool perangkat dari layar *Tool
-  perangkat*; tool inti tetap terpasang di registry.
+  perangkat*; tool inti tetap terpasang di registry. Tool berat (kamera,
+  TTS/STT, NFC, analisa jaringan, aplikasi, info perangkat) **nonaktif secara
+  default** supaya schema tool — dan biaya token per request — tetap kecil;
+  aktifkan sekali klik saat dibutuhkan.
 - **Riwayat percakapan** — tiap sesi disimpan sebagai JSON, bisa dibuka lagi.
 - **API key terenkripsi** — disimpan lewat `flutter_secure_storage`
   (Android Keystore + AES-GCM), bukan di file plain.
@@ -223,6 +249,9 @@ lib/
 │   │   └── session_store.dart       # Session, SessionSummary, simpan/muat JSON
 │   ├── settings/
 │   │   └── settings.dart            # AppSettings + SettingsStore (+ API key)
+│   ├── native/
+│   │   └── device_bridge.dart       # MethodChannel sibermobile/device: disk,
+│   │                                #   layar settings, aplikasi terpasang, TTS
 │   └── tools/
 │       ├── tool.dart                # interface Tool, ToolContext, parser arg
 │       ├── registry.dart            # lookup + execute + gerbang approval
@@ -232,7 +261,8 @@ lib/
 │       ├── permissions.dart         # ensurePermission, PermissionOutcome
 │       ├── results.dart             # jsonResult, errorResult, round2/round3
 │       ├── web_tools.dart           # web_search: search + content Exa-compatible
-│       └── hardware/                # 12 file, 23 tool perangkat (lihat Daftar tool)
+│       ├── http_tools.dart          # http_request: klien HTTP bebas ala curl
+│       └── hardware/                # 12 file, 27 tool perangkat (lihat Daftar tool)
 │
 └── app/                             # ← lapisan Flutter (widget + state)
     ├── chat_controller.dart         # ChangeNotifier: jembatan core ↔ UI
@@ -253,6 +283,8 @@ lib/
 
 assets/branding/sibermobile_icon.png       # sumber logo UI Flutter
 android/app/src/main/AndroidManifest.xml   # permission + queries
+android/app/src/main/kotlin/.../           # MainActivity (registrasi channel)
+                                           #   + DeviceBridge.kt (native tools)
 android/app/src/main/res/mipmap-*          # launcher legacy/adaptive/round
 android/app/build.gradle.kts               # minSdk 24 + desugaring
 test/core_agent_test.dart                  # unit test agent/registry/SSE
@@ -274,7 +306,7 @@ JDK 17+.
 ```bash
 flutter pub get
 flutter analyze          # harus 0 issue
-flutter test             # 34 test
+flutter test             # 62 test
 flutter run              # perlu device/emulator Android (API 24+)
 flutter build apk --debug
 ```
@@ -320,8 +352,16 @@ Dua tombol bantu:
 
 ### Web search (Exa-compatible)
 
-Pencarian web adalah tool opsional yang kompatibel dengan API Exa. Konfigurasinya
-tersedia di kartu **Web search** pada layar Pengaturan:
+Pencarian web adalah tool opsional yang kompatibel dengan API Exa. Ada dua mode:
+
+**Mode Siber gateway (otomatis).** Bila Base URL provider mengandung
+`idsiber.com`, tool `web_search` langsung aktif tanpa konfigurasi apa pun:
+endpoint statis `https://api.idsiber.com/v1/generic/exa` dipakai dan
+**token-nya sama dengan API key provider**. Kartu Web search di Pengaturan
+cuma menampilkan status — tidak ada field endpoint/key di mode ini.
+
+**Mode manual (provider lain).** Konfigurasinya tersedia di kartu
+**Web search** pada layar Pengaturan:
 
 | Field | Nilai awal | Catatan |
 |---|---|---|
@@ -357,10 +397,12 @@ tetap digunakan untuk menyimpan konfigurasi provider dan agent.
 
 ## Daftar tool
 
-3 tool inti dan 24 tool opsional dalam 14 kategori. Tool inti tidak bisa
-dinonaktifkan. Kolom 🔒 = `requiresApproval` (dialog konfirmasi dulu bila
-"Minta izin aksi berisiko" aktif). Kolom **Izin** = permission runtime yang
-diminta otomatis saat tool dipanggil.
+3 tool inti dan 30 tool opsional dalam 14 kategori. Tool inti tidak bisa
+dinonaktifkan. Sebagian besar tool perangkat (Device, Battery, Camera, Speech,
+Apps, NFC, analisa jaringan) **nonaktif secara default** dan baru masuk schema
+model setelah diaktifkan di layar *Tool perangkat*. Kolom 🔒 = `requiresApproval`
+(dialog konfirmasi dulu bila "Minta izin aksi berisiko" aktif). Kolom **Izin** =
+permission runtime yang diminta otomatis saat tool dipanggil.
 
 ### Core (selalu aktif)
 | Tool | Fungsi | Izin |
@@ -384,8 +426,11 @@ diminta otomatis saat tool dipanggil.
 ### Network
 | Tool | Fungsi | Izin |
 |---|---|---|
-| `network_info` | Tipe koneksi + SSID/IP/gateway Wi-Fi | Location (detail Wi-Fi di Android 8+) |
-| `web_search` | Pencarian web (`mode: search`) atau pengambilan isi URL (`mode: content`) melalui endpoint Exa-compatible. Hanya terdaftar jika endpoint, API key, dan toggle aktif. | – |
+| `wifi_scan` 🔒 | Scan semua AP terlihat (BSSID, kanal, keamanan, RSSI, flag BSSID acak) + koneksi aktif — bahan analisa rogue AP/evil twin | Location |
+| `cell_scan` 🔒 | Survei seluler: operator SIM vs jaringan terdaftar, tipe jaringan, identitas+sinyal semua sel (CI/TAC/PCI/EARFCN, RSRP/RSRQ) — bahan analisa BTS palsu | Location + Phone |
+| `net_probe` 🔒 | Probe aktif: ping (ICMP), DNS (forward+reverse), cek port TCP | – |
+| `http_request` | HTTP request bebas ala curl: method, header, cookie, body teks/JSON, redirect, timeout; respons lengkap kembali ke model | – |
+| `web_search` | Pencarian web (`mode: search`) atau pengambilan isi URL (`mode: content`) melalui endpoint Exa-compatible. Otomatis aktif dengan token provider saat Base URL mengandung `idsiber.com`; selain itu butuh endpoint + API key manual. | – |
 
 ### Location
 | Tool | Fungsi | Izin |
@@ -397,6 +442,7 @@ diminta otomatis saat tool dipanggil.
 |---|---|---|
 | `take_photo` | Ambil foto (depan/belakang), simpan ke working dir | Camera |
 | `pick_gallery_image` | Pilih gambar dari galeri, salin ke working dir | Photos/Storage |
+| `analyze_image` | Analisa gambar dengan vision model (`ds-vision-flash`): deskripsi, OCR, ekstraksi chart/tabel. Hanya via Siber gateway (idsiber.com) — tanpa itu tool tidak muncul | – |
 
 ### Media
 | Tool | Fungsi | Izin |
@@ -410,12 +456,6 @@ diminta otomatis saat tool dipanggil.
 | `speak_text` 🔒 | Ucapkan teks (TTS). Param `language`, `rate`, `pitch` | – |
 | `stop_speaking` | Hentikan TTS | – |
 | `speech_to_text` 🔒 | Dikte dari mikrofon. Param `durationSeconds` (1–60), `language` (default `id-ID`) | Microphone |
-
-### System
-| Tool | Fungsi | Izin |
-|---|---|---|
-| `vibrate` | Getarkan perangkat (`durationMs`) | – |
-| `open_app_settings` 🔒 | Buka layar pengaturan Android (Wi‑Fi, Bluetooth, lokasi, notifikasi, baterai, …) | – |
 
 ### Notification
 | Tool | Fungsi | Izin |
@@ -432,6 +472,14 @@ diminta otomatis saat tool dipanggil.
 |---|---|---|
 | `list_installed_apps` | Daftar aplikasi terpasang (`search`, `limit`, `includeSystem`) | – |
 | `launch_app` | Buka aplikasi by nama paket | – |
+
+### NFC
+| Tool | Fungsi | Izin |
+|---|---|---|
+| `nfc_status` | Cek ketersediaan + status NFC perangkat | – |
+| `nfc_analyze` 🔒 | Tunggu tap tag lalu profil lengkap: UID, teknologi (ATQA/SAK, ukuran Mifare), NDEF terparse. Tag tetap tersambung ±30 detik untuk tool berikutnya | NFC |
+| `nfc_transceive` 🔒 | Kirim frame mentah hex bebas ke tag aktif — APDU (IsoDep, 2 byte terakhir respons = status word) atau perintah native NfcA/B/F/V (`tech` opsional) | NFC |
+| `nfc_write_ndef` 🔒 | Tulis record NDEF text/URI ke tag aktif (tag harus sudah terformat NDEF) | NFC |
 
 ### Files (sandbox)
 | Tool | Fungsi | Izin |
@@ -518,6 +566,9 @@ paling akhir).
 **3. Tambahkan permission** ke `android/app/src/main/AndroidManifest.xml` bila
 tool-nya butuh izin baru. Bila pakai `Permission.xxx` yang belum ada di
 `permissionByName()`, tambahkan case-nya di `lib/core/tools/permissions.dart`.
+Bila tool-nya butuh kemampuan native baru, pertimbangkan memperluas
+`DeviceBridge.kt` + `device_bridge.dart` (satu channel untuk semua) daripada
+menambah plugin yang belum mendukung built-in Kotlin.
 
 **4. Verifikasi:**
 
@@ -582,7 +633,7 @@ membutuhkannya jalan (lewat `ensurePermission()`).
 | Permission | Dipakai oleh |
 |---|---|
 | `INTERNET`, `ACCESS_NETWORK_STATE` | panggilan ke API AI |
-| `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`, `CHANGE_NETWORK_STATE` | `network_info` |
+| `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE` | `wifi_scan` |
 | `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` | `get_current_location`, detail Wi-Fi |
 | `CAMERA` | `take_photo` |
 | `RECORD_AUDIO` | `speech_to_text` |
@@ -590,15 +641,17 @@ membutuhkannya jalan (lewat `ensurePermission()`).
 | `READ_CONTACTS` | `search_contacts` |
 | `READ_MEDIA_IMAGES/AUDIO/VIDEO`, `READ/WRITE_EXTERNAL_STORAGE` | galeri & file |
 | `QUERY_ALL_PACKAGES` | `list_installed_apps` |
-| `VIBRATE` | getar |
+| `NFC` | `nfc_analyze`, `nfc_transceive`, `nfc_write_ndef` |
+| `READ_PHONE_STATE` | `cell_scan` (identitas operator/sel) |
+| `VIBRATE` | getar notifikasi (`show_notification`) |
 
 Blok `<queries>` mendeklarasikan intent yang dilihat aplikasi (`VIEW`,
 `PROCESS_TEXT`, `RecognitionService`, `TTS_SERVICE`) — wajib sejak Android 11
 agar tautan Markdown dan TTS/STT bisa menemukan aplikasi atau layanan tujuan.
 
 **Bila permission ditolak permanen**, tool tidak retry buta. Ia mengembalikan
-pesan yang menyuruh model memberi tahu user untuk mengaktifkannya di pengaturan
-sistem — dan AI bisa memakai `open_app_settings` untuk membukanya.
+pesan yang menyuruh model memberi tahu user untuk mengaktifkannya sendiri di
+Pengaturan Android (Apps → SiberMobile → Permissions).
 
 ---
 
@@ -608,11 +661,28 @@ Tiga penyesuaian dari template Flutter standar, semuanya di
 `android/app/build.gradle.kts` dan `AndroidManifest.xml`:
 
 Proyek ini memakai Gradle **9.1.0**, Android Gradle Plugin **9.0.1**, dan
-Kotlin Gradle Plugin **2.3.20**. Kombinasi tersebut memenuhi batas dukungan
-Flutter 3.47 tanpa peringatan versi Gradle/AGP/Kotlin saat build. `android.newDsl`
-dan `android.builtInKotlin` sengaja tetap nonaktif karena Flutter Gradle Plugin
-3.47 masih memakai extension Android lama; migrasi built-in Kotlin baru aman
-setelah seluruh plugin native di proyek mendukungnya.
+built-in Kotlin AGP (`android.builtInKotlin=true` di `gradle.properties`).
+Tidak ada modul yang menerapkan Kotlin Gradle Plugin lagi, jadi build bebas
+peringatan KGP yang akan berubah jadi error di versi Flutter mendatang.
+Deklarasi `org.jetbrains.kotlin.android` **2.3.20** tetap ada di
+`settings.gradle.kts` (`apply false`) karena Flutter Gradle Plugin masih
+memvalidasi versinya — kompilasi Kotlin sendiri dijalankan AGP. `android.newDsl`
+tetap nonaktif selama Flutter Gradle Plugin masih memakai extension Android
+lama.
+
+Dua penyesuaian yang menyertai setup ini:
+
+- **`geolocator_android` di-override ke Java 17** dari `android/build.gradle.kts`
+  — plugin itu mematok Java 8 yang ditandai usang oleh AGP 9. Catatan *deprecated
+  API* internalnya masih muncul saat recompile dan baru hilang bila plugin
+  tersebut merilis versi yang memperbaikinya.
+- **Empat kemampuan native dibangun sendiri** lewat MethodChannel
+  `sibermobile/device` (`DeviceBridge.kt` ↔ `device_bridge.dart`): info disk,
+  membuka layar pengaturan, daftar/cek/launch aplikasi, dan text-to-speech.
+  Sebelumnya kemampuan ini datang dari plugin `disk_space_update`, `app_settings`,
+  `installed_apps`, dan `flutter_tts` yang belum bermigrasi ke built-in Kotlin.
+  Perilakunya dijaga setara (mapping layar settings, skala rate/pitch TTS, volume
+  penyimpanan yang diukur).
 
 ```kotlin
 compileOptions {
@@ -635,7 +705,8 @@ dependencies {
   terjadwal.
 - **minSdk 24** karena `flutter_local_notifications`, `flutter_secure_storage`,
   dan `flutter_contacts` semuanya butuh API 24.
-- **`MainActivity` memakai `FlutterActivity`** standar. Ubah ke
+- **`MainActivity` memakai `FlutterActivity`** dan mendaftarkan channel
+  `sibermobile/device` (implementasinya di `DeviceBridge.kt`). Ubah ke
   `FlutterFragmentActivity` hanya bila nanti menambahkan fitur biometrik
   `local_auth`.
 
@@ -669,7 +740,7 @@ mengenali skema `android-37.0`, naikkan ke 13.x lalu jalankan
 ## Testing
 
 ```bash
-flutter test                        # semua (34 test)
+flutter test                        # semua (62 test)
 flutter test test/core_agent_test.dart
 flutter test test/widget_test.dart
 ```
@@ -717,17 +788,19 @@ di test binding; tanpa stub, bootstrap menggantung dan `pumpAndSettle` timeout.
 Jujur soal apa yang **belum** ada, supaya tidak salah asumsi:
 
 ### Belum diverifikasi
-- **Belum diuji runtime di device/emulator.** Build APK debug sukses dan semua
-  test lolos, tapi tidak ada satu pun tool yang pernah dijalankan di Android
-  sungguhan. Ekspektasi realistis saat pertama `flutter run`: beberapa plugin
-  butuh penyesuaian izin/perilaku versi.
+- **Belum diuji runtime di device/emulator.** Build APK sukses dan semua test
+  lolos, tapi tidak ada satu pun tool yang pernah dijalankan di Android
+  sungguhan — termasuk `DeviceBridge` (TTS, layar settings, aplikasi, disk)
+  yang kompilasinya terverifikasi tetapi perilaku runtime-nya belum. Ekspektasi
+  realistis saat pertama `flutter run`: beberapa plugin butuh penyesuaian
+  izin/perilaku versi.
 
 ### Celah fungsional
-- **Tidak ada dukungan multimodal.** `take_photo` menyimpan gambar dan
-  mengembalikan *path*-nya, tapi `Message.toApiJson()` hanya mengirim `content`
-  bertipe string — gambar tidak pernah dikirim ke model. AI tahu foto sudah
-  diambil, tidak tahu isinya. Untuk menambahkannya, `content` harus jadi array
-  `[{type:text},{type:image_url}]` (lihat Roadmap).
+- **Multimodal hanya lewat tool, bukan inline.** `Message.toApiJson()` tetap
+  mengirim `content` string — gambar tidak disisipkan langsung ke percakapan.
+  Namun dengan provider Siber gateway, AI bisa memakai `analyze_image`
+  (model `ds-vision-flash`) untuk membaca isi foto hasil `take_photo`/lampiran:
+  path sandbox, URL, maupun data URL. Provider lain belum punya jalur vision.
 - **Lampiran belum berarti pembacaan semua format.** AI mengetahui path file
   yang diunggah dan dapat memakai tool file untuk teks, tetapi PDF, dokumen
   Office, gambar, atau binary tidak otomatis diubah menjadi isi yang dapat
@@ -766,6 +839,10 @@ Urutan yang disarankan — tiap poin berdiri sendiri dan bisa dikerjakan terpisa
       coba tiap kategori tool, catat yang gagal. Ini prasyarat semua yang lain.
 - [x] **Rapikan kategori tool** + daftar `order` di `toolsByCategory()`.
 - [x] **Bersihkan dependensi tool dan dependency langsung yang belum dipakai.**
+- [x] **Migrasi ke built-in Kotlin AGP.** Empat plugin native yang belum
+      bermigrasi (`disk_space_update`, `app_settings`, `installed_apps`,
+      `flutter_tts`) diganti MethodChannel `sibermobile/device` buatan sendiri;
+      `android.builtInKotlin=true` aktif dan build bersih dari warning.
 - [x] **Ikon aplikasi + splash screen** untuk launcher legacy/adaptive.
 - [ ] **Keystore release + `--split-per-abi`.**
 
@@ -773,9 +850,10 @@ Urutan yang disarankan — tiap poin berdiri sendiri dan bisa dikerjakan terpisa
 - [ ] **Tool AI umum**: tambahkan integrasi pencarian, knowledge base, atau
       layanan produktivitas sesuai kebutuhan, tanpa menjadikan tool perangkat
       sebagai fokus aplikasi.
-- [ ] **Multimodal (vision)**: ubah `content` jadi array parts, tambah tool
-      `analyze_image` yang mengirim foto hasil `take_photo` ke model. Perlu
-      provider vision dan perubahan `Message`/`toApiJson`.
+- [x] **Vision via tool**: `analyze_image` (model statik `ds-vision-flash`)
+      aktif otomatis pada Siber gateway — foto `take_photo`/URL/data URL bisa
+      dibaca model. Inline multimodal (`content` array parts) masih terbuka
+      untuk nanti.
 - [x] **Compact context**: port strategi `compact` siberflow dengan summary AI,
       threshold token, persistence sesi, dan turn terbaru yang tetap verbatim.
 - [x] **Statistik token di UI**: meter context token tampil tepat di bawah input.
@@ -856,4 +934,4 @@ baru sangat membantu pengembangan berikutnya.
 </div>
 
 <!-- repo: sibermobile · dataSiberLab · 2026 -->
-<!-- updated: 2026-10-07 -->
+<!-- updated: 2026-10-08 -->

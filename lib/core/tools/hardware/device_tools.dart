@@ -5,9 +5,9 @@ library;
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:disk_space_update/disk_space_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../native/device_bridge.dart';
 import '../tool.dart';
 import '../results.dart';
 
@@ -94,13 +94,12 @@ class StorageInfoTool extends Tool {
 
   @override
   Future<String> execute(Map<String, dynamic> args, ToolContext ctx) async {
-    final total = await DiskSpace.getTotalDiskSpace;
-    final free = await DiskSpace.getFreeDiskSpace;
+    final space = await DeviceBridge.diskSpace();
     return jsonResult({
       'unit': 'MB',
-      'totalMb': ?total,
-      'freeMb': ?free,
-      if (total != null && free != null) 'usedMb': total - free,
+      'totalMb': space.totalMb,
+      'freeMb': space.freeMb,
+      'usedMb': space.totalMb - space.freeMb,
       'workDir': ctx.workDir,
     });
   }

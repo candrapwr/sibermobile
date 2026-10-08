@@ -43,6 +43,8 @@ Permission? permissionByName(String name) {
       return Permission.bluetoothConnect;
     case 'calendar':
       return Permission.calendarWriteOnly;
+    case 'phone':
+      return Permission.phone;
     case 'nearbyWifiDevices':
       return Permission.nearbyWifiDevices;
     default:
@@ -77,7 +79,7 @@ class PermissionOutcome {
   String denialMessage(String name) {
     if (permanentlyDenied) {
       return 'Permission "$name" is permanently denied. The user must enable '
-          'it in Android system settings (open_app_settings can do that).';
+          'it in Android system settings (Apps → SiberMobile → Permissions).';
     }
     return 'Permission "$name" was denied (status: ${describeStatus(status)}). '
         'The action cannot proceed without it.';
@@ -159,7 +161,7 @@ Future<String?> ensureNamedPermission(String name) async {
     return 'Unknown permission "$name". Supported: location, locationAlways, '
         'camera, microphone, contacts, notification, '
         'storage, photos, videos, bluetooth, bluetoothScan, bluetoothConnect, '
-        'calendar, nearbyWifiDevices.';
+        'calendar, phone, nearbyWifiDevices.';
   }
   return ensurePermissionOrMessage(permission, name: name);
 }

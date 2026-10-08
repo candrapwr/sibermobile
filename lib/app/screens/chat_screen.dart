@@ -1,6 +1,8 @@
 /// Main conversation experience.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -225,7 +227,6 @@ class _ChatScreenState extends State<ChatScreen> {
                     ? _EmptyState(
                         configured: configured,
                         onOpenSettings: () => _open(const SettingsScreen()),
-                        onPrompt: controller.send,
                       )
                     : ListView.builder(
                         controller: _scroll,
@@ -297,20 +298,67 @@ class _MenuRow extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.configured,
-    required this.onOpenSettings,
-    required this.onPrompt,
-  });
+class _EmptyState extends StatefulWidget {
+  const _EmptyState({required this.configured, required this.onOpenSettings});
 
   final bool configured;
   final VoidCallback onOpenSettings;
-  final ValueChanged<String> onPrompt;
+
+  @override
+  State<_EmptyState> createState() => _EmptyStateState();
+}
+
+class _EmptyStateState extends State<_EmptyState> {
+  static const _taglines = <String>[
+    'Tanya apa saja — dari ide harian sampai riset teknis.',
+    'Kirim HTTP request, cek jaringan, atau analisa kartu NFC.',
+    'Aktifkan tool perangkat (kamera, TTS, aplikasi…) dari layar Tool.',
+    'Riwayat chat dan API key tetap tersimpan di perangkat Anda.',
+  ];
+
+  int _tagIndex = 0;
+  Timer? _tagTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant _EmptyState oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.configured != widget.configured) _syncTimer();
+  }
+
+  @override
+  void dispose() {
+    _tagTimer?.cancel();
+    super.dispose();
+  }
+
+  void _syncTimer() {
+    _tagTimer?.cancel();
+    _tagTimer = null;
+    if (widget.configured) {
+      _tagTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+        if (mounted) setState(() => _tagIndex = (_tagIndex + 1) % _taglines.length);
+      });
+    }
+  }
+
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 11) return 'Selamat pagi';
+    if (hour < 15) return 'Selamat siang';
+    if (hour < 19) return 'Selamat sore';
+    return 'Selamat malam';
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
@@ -319,127 +367,130 @@ class _EmptyState extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SiberLogo(size: 62),
-              const SizedBox(height: 16),
+              // Logo with a soft glow so the welcome feels alive without
+              // being noisy.
+              Container(
+                width: 150,
+                height: 150,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    radius: 0.75,
+                    colors: [
+                      colors.primary.withValues(
+                        alpha: theme.brightness == Brightness.dark ? 0.30 : 0.20,
+                      ),
+                      colors.primary.withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+                child: const SiberLogo(size: 66),
+              ),
+              const SizedBox(height: 18),
               Text(
-                configured
-                    ? 'Asisten AI untuk apa saja'
+                widget.configured
+                    ? '$_greeting 👋'
                     : 'Konfigurasi provider dulu',
-                style: theme.textTheme.headlineSmall,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 6),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Text(
-                  configured
-                      ? 'Tanya, diskusikan ide, minta bantuan menulis, atau gunakan tool perangkat saat memang diperlukan.'
-                      : 'Hubungkan provider OpenAI-compatible untuk mulai mengobrol dengan asisten AI Anda.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              if (!configured) ...[
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: onOpenSettings,
-                  icon: const Icon(Icons.settings),
-                  label: const Text('Buka Pengaturan'),
-                ),
-              ] else ...[
-                const SizedBox(height: 20),
-                Align(
-                  alignment: Alignment.centerLeft,
+              const SizedBox(height: 8),
+              if (!widget.configured)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
                   child: Text(
-                    'COBA TANYAKAN',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.1,
+                    'Hubungkan provider OpenAI-compatible untuk mulai mengobrol dengan asisten AI Anda.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              else ...[
+                Text(
+                  'SiberMobile siap membantu.',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // Rotating capability line: informative, not clickable
+                // shortcuts.
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 450),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.35),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  ),
+                  child: ConstrainedBox(
+                    key: ValueKey(_tagIndex),
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.bolt_rounded,
+                          size: 16,
+                          color: colors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            _taglines[_tagIndex],
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.left,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                _SuggestionGrid(onPrompt: onPrompt),
+                const SizedBox(height: 10),
+                // Dot indicator for the rotating line.
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < _taglines.length; i++)
+                      Container(
+                        width: i == _tagIndex ? 16 : 6,
+                        height: 6,
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        decoration: BoxDecoration(
+                          color: i == _tagIndex
+                              ? colors.primary
+                              : colors.outlineVariant,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+              if (!widget.configured) ...[
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: widget.onOpenSettings,
+                  icon: const Icon(Icons.settings),
+                  label: const Text('Buka Pengaturan'),
+                ),
               ],
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SuggestionGrid extends StatelessWidget {
-  const _SuggestionGrid({required this.onPrompt});
-
-  final ValueChanged<String> onPrompt;
-
-  static const suggestions = [
-    (
-      Icons.lightbulb_outline_rounded,
-      'Jelaskan konsep',
-      'Jelaskan konsep ini dengan sederhana: ',
-    ),
-    (
-      Icons.edit_note_rounded,
-      'Bantu menulis',
-      'Bantu saya menulis pesan yang sopan untuk ',
-    ),
-    (
-      Icons.account_tree_outlined,
-      'Buat rencana',
-      'Bantu buatkan rencana langkah demi langkah untuk ',
-    ),
-    (
-      Icons.auto_awesome_outlined,
-      'Cari ide',
-      'Berikan beberapa ide kreatif untuk ',
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = (constraints.maxWidth - 8) / 2;
-        return Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final suggestion in suggestions)
-              SizedBox(
-                width: width,
-                child: SurfaceCard(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 10,
-                  ),
-                  onTap: () => onPrompt(suggestion.$3),
-                  child: Row(
-                    children: [
-                      Icon(
-                        suggestion.$1,
-                        size: 20,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          suggestion.$2,
-                          style: Theme.of(context).textTheme.labelLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
     );
   }
 }

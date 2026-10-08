@@ -16,6 +16,15 @@ const String _settingsKey = 'sibermobile.settings.v1';
 /// Where the API key lives (secure storage), keyed by provider — here only one.
 const String _apiKeyKey = 'custom';
 const String _webApiKeyKey = 'exa';
+
+/// Static Exa-compatible endpoint used when the provider itself is the
+/// Siber gateway. The provider API key doubles as the web search token, so
+/// no separate web search configuration is needed in that mode.
+const String siberWebSearchBaseUrl = 'https://api.idsiber.com/v1/generic/exa';
+
+/// Static multimodal model used by the built-in image analysis tool when the
+/// provider is the Siber gateway.
+const String siberVisionModel = 'ds-vision-flash';
 const String defaultWebBaseUrl = 'https://api.exa.ai';
 
 /// Reasoning-effort values forwarded to gateways that understand the field.
@@ -27,6 +36,37 @@ enum AppThemeMode { system, light, dark }
 /// Default maximum output size for a provider call when the user has not
 /// entered a custom value.
 const int defaultMaxTokens = 50000;
+
+/// Optional tools that start disabled until the user turns them on in the
+/// Tools screen. Keeping heavy device tools out of the default registry
+/// keeps the tool schema — and therefore every request's token cost — small.
+/// Note: web_search is NOT here — with the Siber gateway it should work out
+/// of the box, and elsewhere it is gated by its own configuration anyway.
+const Set<String> defaultDisabledTools = {
+  // Device & battery info.
+  'get_device_info',
+  'get_storage_info',
+  'get_app_info',
+  'battery_status',
+  // Camera & speech.
+  'take_photo',
+  'pick_gallery_image',
+  'speak_text',
+  'stop_speaking',
+  'speech_to_text',
+  // Installed apps.
+  'list_installed_apps',
+  'launch_app',
+  // Network analysis.
+  'wifi_scan',
+  'cell_scan',
+  'net_probe',
+  // NFC.
+  'nfc_status',
+  'nfc_analyze',
+  'nfc_transceive',
+  'nfc_write_ndef',
+};
 
 class AppSettings {
   AppSettings({
@@ -47,7 +87,7 @@ class AppSettings {
     this.compactKeepRecent = 2,
     this.themeMode = AppThemeMode.system,
     this.approveDestructiveTools = true,
-    this.disabledTools = const {'web_search'},
+    this.disabledTools = defaultDisabledTools,
     this.sessionName = '',
   });
 
@@ -60,6 +100,13 @@ class AppSettings {
   /// Exa-compatible web search endpoint. `/search` and `/contents` are added
   /// automatically by the web tool.
   String webBaseUrl;
+
+  /// True when the provider is the Siber gateway (idsiber.com): built-in
+  /// extras (web search via [siberWebSearchBaseUrl], image analysis via
+  /// [siberVisionModel]) then run automatically with the provider API key —
+  /// no separate configuration needed.
+  bool get usesSiberGateway =>
+      baseUrl.toLowerCase().contains('idsiber.com');
 
   double temperature;
   int maxTokens;
@@ -189,7 +236,7 @@ class AppSettings {
     approveDestructiveTools: json['approveDestructiveTools'] as bool? ?? true,
     disabledTools:
         (json['disabledTools'] as List?)?.map((e) => e.toString()).toSet() ??
-        const {'web_search'},
+        defaultDisabledTools,
     sessionName: json['sessionName']?.toString() ?? '',
   );
 

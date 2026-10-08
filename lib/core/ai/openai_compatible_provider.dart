@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'provider.dart';
 import 'sse.dart';
 import 'types.dart';
+import '../user_agent.dart';
 
 /// Endpoint path appended to [OpenAiCompatibleProvider.baseUrl]. Kept separate
 /// so users can paste either `https://host/v1` or `https://host/v1/`.
@@ -77,6 +78,7 @@ class OpenAiCompatibleProvider implements ChatProvider {
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     'Accept': 'text/event-stream, application/json',
+    'User-Agent': kDefaultUserAgent,
     if (apiKey.isNotEmpty) 'Authorization': 'Bearer $apiKey',
     ...extraHeaders,
   };

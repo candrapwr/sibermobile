@@ -1,8 +1,7 @@
 /// App tools: list installed apps and launch one.
 library;
 
-import 'package:installed_apps/installed_apps.dart';
-
+import '../../native/device_bridge.dart';
 import '../tool.dart';
 import '../results.dart';
 
@@ -47,11 +46,8 @@ class ListAppsTool extends Tool {
     final limit = optionalInt(args, 'limit', 100).clamp(1, 500);
     final includeSystem = optionalBool(args, 'includeSystemApps', false);
 
-    final apps = await InstalledApps.getInstalledApps(
-      excludeSystemApps: !includeSystem,
-      excludeNonLaunchableApps: false,
-      withIcon: false,
-      detectPlatformType: false,
+    final apps = await DeviceBridge.installedApps(
+      includeSystemApps: includeSystem,
     );
 
     var filtered = apps;
@@ -112,12 +108,12 @@ class LaunchAppTool extends Tool {
   @override
   Future<String> execute(Map<String, dynamic> args, ToolContext ctx) async {
     final package = requireString(args, 'packageName').trim();
-    final installed = await InstalledApps.isAppInstalled(package);
-    if (installed != true) {
+    final installed = await DeviceBridge.isAppInstalled(package);
+    if (!installed) {
       return errorResult('App "$package" is not installed on this device.');
     }
-    final ok = await InstalledApps.startApp(package);
-    return jsonResult({'ok': ok == true, 'packageName': package});
+    final ok = await DeviceBridge.startApp(package);
+    return jsonResult({'ok': ok, 'packageName': package});
   }
 }
 

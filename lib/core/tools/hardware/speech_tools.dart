@@ -3,16 +3,12 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import '../../native/device_bridge.dart';
 import '../permissions.dart';
 import '../tool.dart';
 import '../results.dart';
-
-/// Singleton TTS engine. flutter_tts is stateful (language/rate/pitch persist
-/// between calls), so we keep one instance and reconfigure per call.
-final FlutterTts _tts = FlutterTts();
 
 /// Speaks text aloud through the device speaker. This produces audible output,
 /// so it is flagged as requiring approval.
@@ -65,17 +61,19 @@ class SpeakTool extends Tool {
     final rate = optionalDouble(args, 'rate', 0.5).clamp(0.0, 1.0);
     final pitch = optionalDouble(args, 'pitch', 1.0).clamp(0.5, 2.0);
 
-    try {
-      await _tts.setLanguage(language);
-    } catch (_) {
-      // Some engines ignore unsupported languages; keep going with defaults.
-    }
-    await _tts.setSpeechRate(rate);
-    await _tts.setPitch(pitch);
-    // Block until the utterance completes so the model sees a definitive result.
-    await _tts.awaitSpeakCompletion(true);
-    await _tts.speak(text);
-    return jsonResult({'ok': true, 'spoke': text.length, 'language': language});
+    // DeviceBridge.speak keeps the native engine's language/rate/pitch per
+    // call and blocks until the utterance completes.
+    final ok = await DeviceBridge.speak(
+      text: text,
+      language: language,
+      rate: rate,
+      pitch: pitch,
+    );
+    return jsonResult({
+      'ok': ok,
+      'spoke': text.length,
+      'language': language,
+    });
   }
 }
 
@@ -99,7 +97,7 @@ class StopSpeakingTool extends Tool {
 
   @override
   Future<String> execute(Map<String, dynamic> args, ToolContext ctx) async {
-    await _tts.stop();
+    await DeviceBridge.stopSpeaking();
     return jsonResult({'ok': true, 'stopped': true});
   }
 }

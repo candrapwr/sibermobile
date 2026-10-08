@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import 'results.dart';
 import 'tool.dart';
+import '../user_agent.dart';
 
 const String defaultWebBaseUrl = 'https://api.exa.ai';
 const int _searchResultCount = 5;
@@ -210,6 +211,7 @@ class WebSearchTool extends Tool {
             Uri.parse(url),
             headers: {
               'content-type': 'application/json',
+              'user-agent': kDefaultUserAgent,
               'authorization': 'Bearer $apiKey',
               'x-api-key': apiKey,
             },

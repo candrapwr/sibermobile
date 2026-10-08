@@ -46,6 +46,9 @@ class ToolContext {
     this.onProgress,
     this.webBaseUrl = '',
     this.webApiKey,
+    this.visionBaseUrl = '',
+    this.visionApiKey,
+    this.visionModel = '',
   });
 
   /// Sandbox root for this session — all file tools must resolve inside it.
@@ -72,6 +75,17 @@ class ToolContext {
   /// API key for the Exa-compatible endpoint. Kept in secure storage by the
   /// Flutter host and passed only to the tool at execution time.
   final String? webApiKey;
+
+  /// OpenAI-compatible endpoint for the built-in image analysis tool. Set
+  /// only when the provider is the Siber gateway; the tool appends
+  /// `/chat/completions` itself.
+  final String visionBaseUrl;
+
+  /// API key for [visionBaseUrl] (the provider key on the Siber gateway).
+  final String? visionApiKey;
+
+  /// Static multimodal model id used by the image analysis tool.
+  final String visionModel;
 }
 
 /// A single callable tool exposed to the model.

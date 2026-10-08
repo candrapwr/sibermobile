@@ -83,8 +83,13 @@ class ChatController extends ChangeNotifier {
   bool get isConfigured => _settings.isConfigured && (_apiKey ?? '').isNotEmpty;
   bool get hasApiKey => (_apiKey ?? '').isNotEmpty;
   bool get hasWebApiKey => (_webApiKey ?? '').isNotEmpty;
-  bool get hasWebSearchConfig =>
-      _settings.webBaseUrl.trim().isNotEmpty && (_webApiKey ?? '').isNotEmpty;
+
+  /// Web search needs either the manual endpoint+key pair, or — when the
+  /// provider is the Siber gateway — just the provider key: the static
+  /// Exa-compatible endpoint on the gateway is used with the same token.
+  bool get hasWebSearchConfig => _settings.usesSiberGateway
+      ? (_apiKey ?? '').isNotEmpty
+      : _settings.webBaseUrl.trim().isNotEmpty && (_webApiKey ?? '').isNotEmpty;
 
   // ── chat state ──────────────────────────────────────────────────────────
   final List<ChatItem> _items = [];
@@ -257,6 +262,7 @@ class ChatController extends ChangeNotifier {
     final registry = buildRegistry(
       _settings,
       webSearchAvailable: hasWebSearchConfig,
+      imageAnalysisAvailable: _settings.usesSiberGateway && hasApiKey,
     );
     final savedUsage = _session?.usage ?? const SessionUsage();
     final agent = Agent(
@@ -288,14 +294,20 @@ class ChatController extends ChangeNotifier {
   }
 
   ToolContext _buildToolContext() {
+    final siberGateway = _settings.usesSiberGateway;
     return ToolContext(
       workDir: _workDir,
       askUser: _askUser,
       requestApproval: _settings.approveDestructiveTools
           ? _requestApproval
           : null,
-      webBaseUrl: _settings.webBaseUrl,
-      webApiKey: _webApiKey,
+      webBaseUrl: siberGateway
+          ? siberWebSearchBaseUrl
+          : _settings.webBaseUrl,
+      webApiKey: siberGateway ? _apiKey : _webApiKey,
+      visionBaseUrl: siberGateway ? _settings.baseUrl : '',
+      visionApiKey: siberGateway ? _apiKey : null,
+      visionModel: siberGateway ? siberVisionModel : '',
     );
   }
 

@@ -306,16 +306,24 @@ void main() {
     test('exposes the supported core and optional tools', () {
       final names = allTools.map((tool) => tool.name).toSet();
 
-      expect(names, hasLength(27));
+      expect(names, hasLength(33));
       expect(
         names,
         containsAll([
           'get_current_time',
           'send_file_to_user',
           'web_search',
+          'http_request',
+          'analyze_image',
           'get_device_info',
           'take_photo',
-          'vibrate',
+          'nfc_status',
+          'nfc_analyze',
+          'nfc_transceive',
+          'nfc_write_ndef',
+          'wifi_scan',
+          'cell_scan',
+          'net_probe',
         ]),
       );
       for (final retiredName in const [
@@ -331,6 +339,9 @@ void main() {
         'set_wakelock',
         'call_phone',
         'send_sms',
+        'network_info',
+        'vibrate',
+        'open_app_settings',
       ]) {
         expect(names, isNot(contains(retiredName)));
       }
@@ -370,6 +381,95 @@ void main() {
           AppSettings(disabledTools: const {}),
           webSearchAvailable: true,
         ).contains('web_search'),
+        isTrue,
+      );
+    });
+
+    test('siber gateway base URL switches web search to built-in mode', () {
+      expect(
+        AppSettings(baseUrl: 'https://api.idsiber.com/v1').usesSiberGateway,
+        isTrue,
+      );
+      expect(
+        AppSettings(baseUrl: 'https://API.Idsiber.Com/v1').usesSiberGateway,
+        isTrue,
+      );
+      expect(
+        AppSettings(baseUrl: 'https://api.openai.com/v1').usesSiberGateway,
+        isFalse,
+      );
+      expect(AppSettings(baseUrl: '').usesSiberGateway, isFalse);
+      // web_search must not sit in the default-disabled set: through the
+      // Siber gateway it is meant to work out of the box.
+      expect(AppSettings().disabledTools.contains('web_search'), isFalse);
+    });
+
+    test('image analysis exists only through the Siber gateway', () {
+      // Not on the registry without the gateway, regardless of toggles.
+      expect(
+        buildRegistry(
+          AppSettings(disabledTools: const {}),
+        ).contains('analyze_image'),
+        isFalse,
+      );
+      // With the gateway flag it registers and follows the toggle.
+      expect(
+        buildRegistry(
+          AppSettings(disabledTools: const {}),
+          imageAnalysisAvailable: true,
+        ).contains('analyze_image'),
+        isTrue,
+      );
+      expect(
+        buildRegistry(
+          AppSettings(disabledTools: const {'analyze_image'}),
+          imageAnalysisAvailable: true,
+        ).contains('analyze_image'),
+        isFalse,
+      );
+    });
+
+    test('heavy device tools start disabled by default', () {
+      final registry = buildRegistry(AppSettings());
+      // Off out of the box to keep the tool schema light...
+      for (final off in const [
+        'web_search',
+        'get_device_info',
+        'get_storage_info',
+        'get_app_info',
+        'battery_status',
+        'take_photo',
+        'pick_gallery_image',
+        'speak_text',
+        'stop_speaking',
+        'speech_to_text',
+        'list_installed_apps',
+        'launch_app',
+        'wifi_scan',
+        'cell_scan',
+        'net_probe',
+        'nfc_status',
+        'nfc_analyze',
+        'nfc_transceive',
+        'nfc_write_ndef',
+      ]) {
+        expect(registry.contains(off), isFalse, reason: '$off should default off');
+      }
+      // ...while lightweight and text-oriented tools stay available.
+      for (final on in const [
+        'get_current_time',
+        'ask_user',
+        'send_file_to_user',
+        'http_request',
+        'get_current_location',
+        'read_file',
+        'write_file',
+      ]) {
+        expect(registry.contains(on), isTrue, reason: '$on should default on');
+      }
+      // Every default-off tool can be turned back on.
+      expect(
+        buildRegistry(AppSettings(disabledTools: const {})).contains('nfc_analyze'),
         isTrue,
       );
     });

@@ -1,11 +1,7 @@
-/// Interaction tools: ask the user a question mid-turn, and open system/app
-/// settings screens.
+/// Interaction tools: ask the user a question mid-turn.
 library;
 
-import 'package:app_settings/app_settings.dart';
-
 import '../tool.dart';
-import '../results.dart';
 
 /// Blocks on a user prompt in the chat UI. When no interactive UI is attached
 /// (ctx.askUser is null) it tells the model to proceed with a safe default
@@ -84,104 +80,6 @@ class AskUserTool extends Tool {
   }
 }
 
-/// Opens an Android system settings screen (or this app's own settings page).
-class OpenAppSettingsTool extends Tool {
-  @override
-  String get name => 'open_app_settings';
-
-  @override
-  String get description =>
-      'Open a device settings screen so the user can change something the app '
-      'cannot change itself (for example granting a permanently denied '
-      'permission, enabling location or turning off battery optimisation). '
-      'setting: settings | wifi | bluetooth | dataRoaming | location '
-      '| notification | batteryOptimization | date | display | sound '
-      '| security | appSettings.';
-
-  @override
-  String get category => 'System';
-
-  @override
-  bool get requiresApproval => true;
-
-  @override
-  Map<String, dynamic> get parameters => const {
-    'type': 'object',
-    'properties': <String, dynamic>{
-      'setting': {
-        'type': 'string',
-        'enum': <String>[
-          'settings',
-          'wifi',
-          'bluetooth',
-          'dataRoaming',
-          'location',
-          'notification',
-          'batteryOptimization',
-          'date',
-          'display',
-          'sound',
-          'security',
-          'appSettings',
-        ],
-        'description': 'Which settings screen to open.',
-      },
-    },
-    'required': <String>['setting'],
-    'additionalProperties': false,
-  };
-
-  @override
-  Future<String> execute(Map<String, dynamic> args, ToolContext ctx) async {
-    final raw = requireString(args, 'setting');
-    final type = _typeFor(raw);
-    if (type == null) {
-      return errorResult(
-        'Unknown setting "$raw". Use one of: settings, wifi, bluetooth, '
-        'dataRoaming, location, notification, batteryOptimization, date, '
-        'display, sound, security, appSettings.',
-      );
-    }
-    await AppSettings.openAppSettings(type: type);
-    return jsonResult({'ok': true, 'opened': raw});
-  }
-
-  AppSettingsType? _typeFor(String raw) {
-    switch (raw.toLowerCase()) {
-      case 'settings':
-        return AppSettingsType.settings;
-      case 'wifi':
-        return AppSettingsType.wifi;
-      case 'bluetooth':
-        return AppSettingsType.bluetooth;
-      case 'data':
-        return AppSettingsType.dataRoaming;
-      case 'location':
-        return AppSettingsType.location;
-      case 'notifications':
-      case 'notification':
-        return AppSettingsType.notification;
-      case 'battery':
-        return AppSettingsType.batteryOptimization;
-      case 'batteryoptimization':
-        return AppSettingsType.batteryOptimization;
-      case 'date':
-        return AppSettingsType.date;
-      case 'display':
-        return AppSettingsType.display;
-      case 'sound':
-        return AppSettingsType.sound;
-      case 'security':
-        return AppSettingsType.security;
-      case 'appsettings':
-        return AppSettingsType.generalSettings;
-      default:
-        return null;
-    }
-  }
-}
-
 final List<Tool> interactionTools = <Tool>[
   AskUserTool(),
-  OpenAppSettingsTool(),
 ];

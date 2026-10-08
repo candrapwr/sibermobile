@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../chat_items.dart';
 import '../theme/app_theme.dart';
+import 'markdown_table.dart';
 
 class UserBubbleView extends StatelessWidget {
   const UserBubbleView({super.key, required this.item});
@@ -115,18 +116,44 @@ class _AssistantMarkdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final segments = splitMarkdownSegments(data);
+
+    Widget markdown(String text) => MarkdownBody(
+      data: text,
+      selectable: true,
+      softLineBreak: true,
+      onTapLink: (_, href, _) => _openMarkdownLink(href),
+      styleSheet: _sheetFor(theme),
+    );
+
+    // Without tables, keep the single MarkdownBody (cheaper than a Column).
+    if (!segments.any((s) => s.isTable)) {
+      return markdown(data);
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final segment in segments)
+          if (segment.isTable)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: MarkdownTableView(table: segment.table!),
+            )
+          else if (segment.text!.trim().isNotEmpty)
+            markdown(segment.text!),
+      ],
+    );
+  }
+
+  MarkdownStyleSheet _sheetFor(ThemeData theme) {
     final colors = theme.colorScheme;
     final body = theme.textTheme.bodyMedium?.copyWith(height: 1.48);
     final codeBackground = colors.surfaceContainerHighest.withValues(
       alpha: theme.brightness == Brightness.dark ? 0.75 : 0.6,
     );
 
-    return MarkdownBody(
-      data: data,
-      selectable: true,
-      softLineBreak: true,
-      onTapLink: (_, href, _) => _openMarkdownLink(href),
-      styleSheet: MarkdownStyleSheet(
+    return MarkdownStyleSheet(
         p: body,
         h1: theme.textTheme.headlineSmall?.copyWith(
           fontWeight: FontWeight.w800,
@@ -194,7 +221,6 @@ class _AssistantMarkdown extends StatelessWidget {
         h2Padding: const EdgeInsets.only(top: 6, bottom: 4),
         h3Padding: const EdgeInsets.only(top: 4, bottom: 3),
         blockSpacing: 6,
-      ),
     );
   }
 

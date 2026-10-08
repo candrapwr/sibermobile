@@ -7,6 +7,8 @@ library;
 
 import '../settings/settings.dart';
 import 'core_tools.dart';
+import 'http_tools.dart';
+import 'image_tools.dart';
 import 'registry.dart';
 import 'tool.dart';
 import 'web_tools.dart';
@@ -19,10 +21,10 @@ import 'hardware/file_tools.dart';
 import 'hardware/interaction_tools.dart';
 import 'hardware/location_tools.dart';
 import 'hardware/media_tools.dart';
-import 'hardware/network_tools.dart';
+import 'hardware/network_analysis_tools.dart';
+import 'hardware/nfc_tools.dart';
 import 'hardware/notification_tools.dart';
 import 'hardware/speech_tools.dart';
-import 'hardware/system_tools.dart';
 
 /// Every tool the app can expose, including tools the user cannot turn off.
 ///
@@ -30,16 +32,18 @@ import 'hardware/system_tools.dart';
 final List<Tool> allTools = <Tool>[
   ...coreTools,
   ...webTools,
+  ...imageTools,
+  ...httpTools,
   ...deviceTools,
   ...batteryTools,
-  ...networkTools,
+  ...networkAnalysisTools,
   ...locationTools,
   ...mediaTools,
   ...speechTools,
-  ...systemTools,
   ...notificationTools,
   ...contactTools,
   ...appTools,
+  ...nfcTools,
   ...fileTools,
   ...interactionTools,
 ];
@@ -66,10 +70,10 @@ Map<String, List<Tool>> toolsByCategory() {
     'Camera',
     'Media',
     'Speech',
-    'System',
     'Notification',
     'Contacts',
     'Apps',
+    'NFC',
     'Files',
   };
   final sorted = <String, List<Tool>>{};
@@ -84,13 +88,19 @@ Map<String, List<Tool>> toolsByCategory() {
 
 /// Builds a [ToolRegistry] from [settings]. Core tools always remain present;
 /// optional tools listed in `settings.disabledTools` are skipped.
+///
+/// `webSearchAvailable` gates `web_search` (configured manually or via the
+/// Siber gateway); `imageAnalysisAvailable` gates `analyze_image`, which only
+/// exists for the Siber gateway provider.
 ToolRegistry buildRegistry(
   AppSettings settings, {
   bool webSearchAvailable = false,
+  bool imageAnalysisAvailable = false,
 }) {
   final registry = ToolRegistry();
   for (final tool in allTools) {
     if (tool.name == 'web_search' && !webSearchAvailable) continue;
+    if (tool.name == 'analyze_image' && !imageAnalysisAvailable) continue;
     if (!tool.isCoreTool && settings.disabledTools.contains(tool.name)) {
       continue;
     }
