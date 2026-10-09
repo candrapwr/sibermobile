@@ -30,6 +30,54 @@ const String siberVisionModel = 'ds-vision-flash';
 /// in the gateway dashboard, not an upstream model), used by the built-in
 /// generate_image tool.
 const String siberImageGenModel = 'ds-imagen';
+
+/// One saved SSH account. The password is deliberately NOT part of this
+/// model: it lives only in secure storage (key `ssh.<id>`) and is never
+/// serialized into settings, session files, or anything the model sees.
+class SshAccount {
+  const SshAccount({
+    required this.id,
+    required this.name,
+    required this.host,
+    required this.port,
+    required this.username,
+  });
+
+  final String id;
+  final String name;
+  final String host;
+  final int port;
+  final String username;
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'name': name,
+    'host': host,
+    'port': port,
+    'username': username,
+  };
+
+  static SshAccount fromJson(Map json) => SshAccount(
+    id: json['id']?.toString() ?? '',
+    name: json['name']?.toString() ?? '',
+    host: json['host']?.toString() ?? '',
+    port: (json['port'] as num?)?.toInt() ?? 22,
+    username: json['username']?.toString() ?? '',
+  );
+
+  SshAccount copyWith({
+    String? name,
+    String? host,
+    int? port,
+    String? username,
+  }) => SshAccount(
+    id: id,
+    name: name ?? this.name,
+    host: host ?? this.host,
+    port: port ?? this.port,
+    username: username ?? this.username,
+  );
+}
 const String defaultWebBaseUrl = 'https://api.exa.ai';
 
 /// Reasoning-effort values forwarded to gateways that understand the field.
@@ -73,6 +121,13 @@ const Set<String> defaultDisabledTools = {
   'nfc_write_ndef',
   // Shell (power tool).
   'shell_exec',
+  // SSH/SFTP (needs a user-picked account anyway).
+  'ssh_list_accounts',
+  'ssh_select_account',
+  'ssh_exec',
+  'sftp_list',
+  'sftp_get',
+  'sftp_put',
 };
 
 class AppSettings {
@@ -95,6 +150,7 @@ class AppSettings {
     this.themeMode = AppThemeMode.system,
     this.approveDestructiveTools = true,
     this.disabledTools = defaultDisabledTools,
+    this.sshAccounts = const [],
     this.sessionName = '',
   });
 
@@ -120,6 +176,9 @@ class AppSettings {
 
   /// Distinguishes an intentional legacy value of 4096 from the old default.
   bool maxTokensCustomized;
+
+  /// Saved SSH accounts (metadata only — passwords live in secure storage).
+  List<SshAccount> sshAccounts;
   int maxIterations;
   bool includeUsageInStream;
 
@@ -169,6 +228,7 @@ class AppSettings {
     AppThemeMode? themeMode,
     bool? approveDestructiveTools,
     Set<String>? disabledTools,
+    List<SshAccount>? sshAccounts,
     String? sessionName,
   }) => AppSettings(
     baseUrl: baseUrl ?? this.baseUrl,
@@ -190,6 +250,7 @@ class AppSettings {
     approveDestructiveTools:
         approveDestructiveTools ?? this.approveDestructiveTools,
     disabledTools: disabledTools ?? this.disabledTools,
+    sshAccounts: sshAccounts ?? this.sshAccounts,
     sessionName: sessionName ?? this.sessionName,
   );
 
@@ -214,6 +275,7 @@ class AppSettings {
     'themeMode': themeMode.name,
     'approveDestructiveTools': approveDestructiveTools,
     'disabledTools': disabledTools.toList(),
+    'sshAccounts': [for (final a in sshAccounts) a.toJson()],
     'sessionName': sessionName,
   };
 
@@ -244,6 +306,10 @@ class AppSettings {
     disabledTools:
         (json['disabledTools'] as List?)?.map((e) => e.toString()).toSet() ??
         defaultDisabledTools,
+    sshAccounts: [
+      for (final a in (json['sshAccounts'] as List?) ?? const <Object?>[])
+        if (a is Map) SshAccount.fromJson(a),
+    ],
     sessionName: json['sessionName']?.toString() ?? '',
   );
 
@@ -330,6 +396,26 @@ class SettingsStore {
     } catch (_) {
       // Best-effort.
     }
+  }
+
+  /// SSH account password helpers: values live only in the Android
+  /// Keystore-backed secure storage, keyed per account id.
+  Future<String?> readSshPassword(String accountId) async {
+    try {
+      return await _secure.read(key: 'ssh.$accountId');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> writeSshPassword(String accountId, String password) async {
+    await _secure.write(key: 'ssh.$accountId', value: password);
+  }
+
+  Future<void> deleteSshPassword(String accountId) async {
+    try {
+      await _secure.delete(key: 'ssh.$accountId');
+    } catch (_) {}
   }
 
   Future<String?> readWebApiKey() async {

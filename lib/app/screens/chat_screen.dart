@@ -15,6 +15,7 @@ import '../widgets/message_widgets.dart';
 import '../widgets/prompt_dialogs.dart';
 import 'sessions_screen.dart';
 import 'settings_screen.dart';
+import 'ssh_accounts_screen.dart';
 import 'tools_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -114,6 +115,9 @@ class _ChatScreenState extends State<ChatScreen> {
     switch (value) {
       case _ChatMenu.tools:
         await _open(const ToolsScreen());
+      case _ChatMenu.sshAccounts:
+        _open(const SshAccountsScreen());
+        break;
       case _ChatMenu.history:
         await _open(const SessionsScreen());
       case _ChatMenu.settings:
@@ -234,6 +238,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
               PopupMenuItem(
+                value: _ChatMenu.sshAccounts,
+                child: _MenuRow(
+                  icon: Icons.dns_outlined,
+                  label: 'Akun SSH',
+                ),
+              ),
+              PopupMenuItem(
                 value: _ChatMenu.settings,
                 child: _MenuRow(icon: Icons.tune_rounded, label: 'Pengaturan'),
               ),
@@ -311,7 +322,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-enum _ChatMenu { tools, history, settings }
+enum _ChatMenu { tools, history, sshAccounts, settings }
 
 class _MenuRow extends StatelessWidget {
   const _MenuRow({required this.icon, required this.label});

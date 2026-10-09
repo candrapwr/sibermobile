@@ -52,6 +52,7 @@ dependencies:
   audioplayers: ^6.8.1
   flutter_contacts: ^2.6.0
   lottie: ^3.6.1
+  dartssh2: ^4.1.0
 
 dev_dependencies:
   flutter_test:

@@ -307,7 +307,7 @@ void main() {
     test('exposes the supported core and optional tools', () {
       final names = allTools.map((tool) => tool.name).toSet();
 
-      expect(names, hasLength(35));
+      expect(names, hasLength(41));
       expect(
         names,
         containsAll([
@@ -463,6 +463,12 @@ void main() {
         'nfc_transceive',
         'nfc_write_ndef',
         'shell_exec',
+        'ssh_list_accounts',
+        'ssh_select_account',
+        'ssh_exec',
+        'sftp_list',
+        'sftp_get',
+        'sftp_put',
       ]) {
         expect(registry.contains(off), isFalse, reason: '$off should default off');
       }

@@ -50,6 +50,7 @@ class ToolContext {
     this.visionApiKey,
     this.visionModel = '',
     this.imageGenModel = '',
+    this.ssh,
   });
 
   /// Sandbox root for this session — all file tools must resolve inside it.
@@ -90,6 +91,34 @@ class ToolContext {
 
   /// Static image-generation route id (Siber gateway only).
   final String imageGenModel;
+
+  /// SSH/SFTP access for the ssh_* tools. Implemented by the Flutter host;
+  /// keeping credentials behind this interface is what ensures passwords
+  /// never appear in tool arguments or results.
+  final SshAccess? ssh;
+}
+
+/// Host-side SSH capability surface used by the ssh_* tools.
+abstract class SshAccess {
+  /// Saved accounts as name/host/port/username maps (no credentials),
+  /// each with a `selected` flag for the current chat session.
+  Future<List<Map<String, Object?>>> listAccounts();
+
+  /// Marks the account the user picked for this chat session. Returns an
+  /// error map when no account matches.
+  Future<Map<String, dynamic>> selectAccount(String nameOrId);
+
+  /// Runs one command over SSH and returns stdout/stderr/exitCode.
+  Future<Map<String, dynamic>> exec(String command, int timeoutSeconds);
+
+  /// Lists a remote directory.
+  Future<Map<String, dynamic>> sftpList(String path);
+
+  /// Downloads a remote file into the session workdir (relative path back).
+  Future<Map<String, dynamic>> sftpDownload(String remotePath);
+
+  /// Uploads a workdir-relative file to a remote path.
+  Future<Map<String, dynamic>> sftpUpload(String localPath, String remotePath);
 }
 
 /// A single callable tool exposed to the model.

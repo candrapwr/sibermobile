@@ -14,6 +14,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dartssh2/dartssh2.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -185,6 +186,7 @@ class ChatController extends ChangeNotifier {
   /// Starts a brand-new empty session (persisted lazily on first message).
   Future<void> newSession() async {
     if (_busy) return;
+    _closeSsh();
     _session = null;
     _workDir = '';
     _items.clear();
@@ -197,6 +199,7 @@ class ChatController extends ChangeNotifier {
 
   Future<void> openSession(String id) async {
     if (_busy) return;
+    _closeSsh();
     final loaded = await _sessionStore.load(id);
     if (loaded == null) return;
     _session = loaded;
@@ -227,6 +230,12 @@ class ChatController extends ChangeNotifier {
   /// Text of a turn that was cut off before any reply was persisted; offered
   /// back in the composer when the session reopens.
   String? _retryDraft;
+
+  // ── SSH (per chat session) ────────────────────────────────────────────────
+  String? _selectedSshAccountId;
+  SSHClient? _sshClient;
+  SftpClient? _sftpClient;
+  Future<SSHClient>? _sshConnecting;
   String? get pendingRetryText => _retryDraft;
 
   /// A persisted history ending in a user message means the app died before
@@ -322,6 +331,56 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Saves a new SSH account; the password goes straight to secure storage
+  /// and never enters settings JSON.
+  Future<void> addSshAccount({
+    required String name,
+    required String host,
+    required int port,
+    required String username,
+    required String password,
+  }) async {
+    final id = 'ssh_${DateTime.now().microsecondsSinceEpoch}';
+    await _settingsStore.writeSshPassword(id, password);
+    await saveSettings(
+      _settings.copyWith(
+        sshAccounts: [
+          ..._settings.sshAccounts,
+          SshAccount(
+            id: id,
+            name: name,
+            host: host,
+            port: port,
+            username: username,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Deletes an SSH account and its stored password; drops the active
+  /// connection if that account was in use.
+  Future<void> deleteSshAccount(String id) async {
+    await _settingsStore.deleteSshPassword(id);
+    if (_selectedSshAccountId == id) {
+      try {
+        _sftpClient?.close();
+      } catch (_) {}
+      try {
+        _sshClient?.close();
+      } catch (_) {}
+      _sftpClient = null;
+      _sshClient = null;
+      _sshConnecting = null;
+      _selectedSshAccountId = null;
+    }
+    await saveSettings(
+      _settings.copyWith(
+        sshAccounts: _settings.sshAccounts.where((a) => a.id != id).toList(),
+      ),
+    );
+  }
+
   /// Wipes every stored session (and their work directories) and starts a
   /// fresh chat.
   Future<void> deleteAllSessions() async {
@@ -330,7 +389,191 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── agent lifecycle ─────────────────────────────────────────────────────
+  // ── SSH access for tools ────────────────────────────────────────────────
+  //
+  // Implements SshAccess for the ssh_* tools. Credentials are read from
+  // secure storage only at connect time and never leave this class: tools
+  // see account metadata, command output and file listings — never secrets.
+
+  SshAccess get sshAccess => _SshControllerAccess(this);
+
+  void _closeSsh() {
+    _selectedSshAccountId = null;
+    _sshConnecting = null;
+    try {
+      _sftpClient?.close();
+    } catch (_) {}
+    try {
+      _sshClient?.close();
+    } catch (_) {}
+    _sftpClient = null;
+    _sshClient = null;
+  }
+
+  SshAccount? _findSshAccount(String nameOrId) {
+    final needle = nameOrId.trim().toLowerCase();
+    for (final a in _settings.sshAccounts) {
+      if (a.id == nameOrId ||
+          a.name.toLowerCase() == needle ||
+          '${a.username}@${a.host}'.toLowerCase() == needle) {
+        return a;
+      }
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>> _sshSelectAccount(String nameOrId) async {
+    final account = _findSshAccount(nameOrId);
+    if (account == null) {
+      final names = _settings.sshAccounts
+          .map((a) => '${a.name} (${a.username}@${a.host})')
+          .join(', ');
+      return {
+        'ok': false,
+        'error': 'No SSH account matches "$nameOrId". Saved accounts: '
+            '${names.isEmpty ? '(none)' : names}.',
+      };
+    }
+    if (_selectedSshAccountId != account.id) {
+      // Switching accounts drops the previous connection lazily.
+      try {
+        _sftpClient?.close();
+      } catch (_) {}
+      try {
+        _sshClient?.close();
+      } catch (_) {}
+      _sftpClient = null;
+      _sshClient = null;
+      _sshConnecting = null;
+      _selectedSshAccountId = account.id;
+    }
+    return {'ok': true, 'selected': account.name};
+  }
+
+  Future<SSHClient> _sshEnsureConnected() async {
+    if (_sshClient?.isClosed == false) return _sshClient!;
+    final existing = _sshConnecting;
+    if (existing != null) return existing;
+
+    final accountId = _selectedSshAccountId;
+    if (accountId == null) {
+      throw StateError('no-account');
+    }
+    final account = _settings.sshAccounts
+        .where((a) => a.id == accountId)
+        .firstOrNull;
+    if (account == null) {
+      throw StateError('account-deleted');
+    }
+    final password = (await _settingsStore.readSshPassword(account.id)) ?? '';
+    if (password.isEmpty) {
+      throw StateError('no-password');
+    }
+
+    final connecting = () async {
+      final socket = await SSHSocket.connect(
+        account.host,
+        account.port,
+        timeout: const Duration(seconds: 15),
+      );
+      return SSHClient(
+        socket,
+        username: account.username,
+        onPasswordRequest: () => password,
+        keepAliveInterval: const Duration(seconds: 15),
+      );
+    }();
+    _sshConnecting = connecting;
+    try {
+      final client = await connecting.timeout(const Duration(seconds: 25));
+      _sshClient = client;
+      return client;
+    } finally {
+      _sshConnecting = null;
+    }
+  }
+
+  Future<SftpClient> _sftpEnsure() async {
+    if (_sftpClient != null) return _sftpClient!;
+    final client = await _sshEnsureConnected();
+    _sftpClient = await client.sftp();
+    return _sftpClient!;
+  }
+
+  Future<Map<String, dynamic>> _sshExecImpl(
+    String command,
+    int timeoutSeconds,
+  ) async {
+    final client = await _sshEnsureConnected();
+    final session = await client.execute(command);
+    final stdout = StringBuffer();
+    final stderr = StringBuffer();
+    final subs = [
+      session.stdout.listen(
+        (d) {
+          if (stdout.length < 200000) {
+            stdout.write(utf8.decode(d, allowMalformed: true));
+          }
+        },
+      ),
+      session.stderr.listen(
+        (d) {
+          if (stderr.length < 200000) {
+            stderr.write(utf8.decode(d, allowMalformed: true));
+          }
+        },
+      ),
+    ];
+    try {
+      await session.done.timeout(Duration(seconds: timeoutSeconds));
+    } on TimeoutException {
+      for (final s in subs) {
+        await s.cancel();
+      }
+      return {
+        'ok': false,
+        'error': 'Command timed out after ${timeoutSeconds}s (still running '
+            'on the server).',
+      };
+    }
+    return {
+      'ok': true,
+      'exitCode': session.exitCode,
+      'stdout': _sshClamp(stdout.toString()),
+      'stderr': _sshClamp(stderr.toString()),
+    };
+  }
+
+  String _sshClamp(String text) =>
+      text.length <= 12000 ? text : text.substring(0, 12000);
+
+  Map<String, dynamic> _sshErrorMap(Object e) {
+    final message = e is StateError ? e.message : '';
+    switch (message) {
+      case 'no-account':
+        return {
+          'ok': false,
+          'error': 'No SSH account is selected for this conversation yet. '
+              'Run ssh_list_accounts, let the user pick one with ask_user, '
+              'then call ssh_select_account.',
+        };
+      case 'no-password':
+        return {
+          'ok': false,
+          'error': 'The saved password for this account is empty. Re-add the '
+              'account from the Akun SSH menu.',
+        };
+      case 'account-deleted':
+        return {
+          'ok': false,
+          'error': 'The selected SSH account was deleted. Ask the user to '
+              'pick another one.',
+        };
+    }
+    return {'ok': false, 'error': 'SSH failed: $e'};
+  }
+
+// ── agent lifecycle ─────────────────────────────────────────────────────
 
   void _rebuildAgent() {
     _bundle?.provider.close();
@@ -400,6 +643,7 @@ class ChatController extends ChangeNotifier {
       visionApiKey: siberGateway ? _apiKey : null,
       visionModel: siberGateway ? siberVisionModel : '',
       imageGenModel: siberGateway ? siberImageGenModel : '',
+      ssh: sshAccess,
     );
   }
 
@@ -735,5 +979,112 @@ bool _isToolErrorResult(String result) {
     return decoded is Map && decoded['ok'] == false;
   } catch (_) {
     return false;
+  }
+}
+
+/// Glues the ssh_* tools to ChatController: all credential handling stays
+/// inside the controller; this surface only exposes metadata and results.
+class _SshControllerAccess implements SshAccess {
+  _SshControllerAccess(this._controller);
+
+  final ChatController _controller;
+
+  @override
+  Future<List<Map<String, Object?>>> listAccounts() async {
+    return [
+      for (final a in _controller._settings.sshAccounts)
+        {
+          'id': a.id,
+          'name': a.name,
+          'host': a.host,
+          'port': a.port,
+          'username': a.username,
+          'selected': a.id == _controller._selectedSshAccountId,
+        },
+    ];
+  }
+
+  @override
+  Future<Map<String, dynamic>> selectAccount(String nameOrId) =>
+      _controller._sshSelectAccount(nameOrId);
+
+  @override
+  Future<Map<String, dynamic>> exec(String command, int timeoutSeconds) =>
+      _controller._sshExecImpl(command, timeoutSeconds);
+
+  @override
+  Future<Map<String, dynamic>> sftpList(String path) async {
+    try {
+      final sftp = await _controller._sftpEnsure();
+      final entries = await sftp.listdir(path);
+      return {
+        'ok': true,
+        'path': path,
+        'entries': [
+          for (final e in entries.take(500))
+            {
+              'name': e.filename,
+              'isDirectory': e.attr.isDirectory,
+              if (e.attr.size != null) 'sizeBytes': e.attr.size,
+            },
+        ],
+      };
+    } catch (e) {
+      return _controller._sshErrorMap(e);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> sftpDownload(String remotePath) async {
+    try {
+      final sftp = await _controller._sftpEnsure();
+      final name = remotePath.split('/').where((p) => p.isNotEmpty).last;
+      final localRel = resolveWithin(_controller._workDir, 'ssh/$name');
+      final local = File(localRel);
+      await local.parent.create(recursive: true);
+      final sink = local.openWrite();
+      final bytes = await sftp.download(remotePath, sink, closeDestination: true);
+      return {
+        'ok': true,
+        'path': 'ssh/$name',
+        'bytes': bytes,
+        'hint': 'Offer the file via send_file_to_user with path "ssh/$name".',
+      };
+    } catch (e) {
+      return _controller._sshErrorMap(e);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> sftpUpload(
+    String localPath,
+    String remotePath,
+  ) async {
+    try {
+      final sftp = await _controller._sftpEnsure();
+      final local = File(resolveWithin(_controller._workDir, localPath));
+      if (!await local.exists()) {
+        return {
+          'ok': false,
+          'error': 'Local file "$localPath" not found in the session workdir.',
+        };
+      }
+      final file = await sftp.open(
+        remotePath,
+        mode: SftpFileOpenMode.write | SftpFileOpenMode.create,
+      );
+      final writer = file.write(
+        local.openRead().map(Uint8List.fromList),
+      );
+      await writer.done;
+      await file.close();
+      return {
+        'ok': true,
+        'uploaded': await local.length(),
+        'remotePath': remotePath,
+      };
+    } catch (e) {
+      return _controller._sshErrorMap(e);
+    }
   }
 }

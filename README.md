@@ -114,7 +114,7 @@ memang Anda kontrol.
 - **Tool inti selalu aktif** — `get_current_time` membaca jam perangkat,
   `ask_user` membuka pertanyaan/opsi dari AI, dan `send_file_to_user` membuat
   file hasil kerja siap disimpan ke HP; semuanya tidak bisa dinonaktifkan.
-- **32 tool opsional** untuk perangkat dan web: info perangkat, baterai,
+- **38 tool opsional** untuk perangkat dan web: info perangkat, baterai,
   jaringan, GPS, kamera/media, TTS/STT, notifikasi, kontak, aplikasi,
   NFC, file sandbox, dan pencarian web. Asisten tetap berguna
   penuh tanpa memakai tool opsional apa pun.
@@ -154,6 +154,14 @@ memang Anda kontrol.
   pesan terakhir otomatis dikembalikan ke kolom ketik saat sesi dibuka.
   Catatan: operasi yang butuh Activity (reader-mode NFC, dialog permission)
   akan melaporkan error bila dipanggil saat app tertutup — bukan crash.
+- **SSH/SFTP ke server Anda sendiri** — kelola banyak akun SSH dari menu
+  *Akun SSH* (host, port, username; **password disimpan terenkripsi di
+  Android Keystore dan tidak pernah dikirim ke AI**). Saat AI butuh SSH, ia
+  mendaftar akun, Anda memilih lewat dialog, dan pilihan itu berlaku sepanjang
+  sesi percakapan — lalu `ssh_exec` menjalankan perintah, `sftp_list`/
+  `sftp_get`/`sftp_put` memindahkan file dua arah (unduhan masuk sandbox
+  sesi dan bisa langsung ditawarkan ke user). Murni Dart (dartssh2), tanpa
+  kode native; tool-nya nonaktif secara default.
 - **Intelijen jaringan bebas** — `wifi_scan` (semua AP terlihat + flag BSSID
   acak untuk deteksi rogue AP/evil twin), `cell_scan` (operator SIM vs
   jaringan terdaftar, identitas + sinyal semua sel — bahan analisa deteksi
@@ -421,9 +429,9 @@ tetap digunakan untuk menyimpan konfigurasi provider dan agent.
 
 ## Daftar tool
 
-3 tool inti dan 32 tool opsional dalam 15 kategori. Tool inti tidak bisa
+3 tool inti dan 38 tool opsional dalam 16 kategori. Tool inti tidak bisa
 dinonaktifkan. Sebagian besar tool perangkat (Device, Battery, Camera, Speech,
-Apps, NFC, analisa jaringan, shell) **nonaktif secara default** dan baru masuk schema
+Apps, NFC, analisa jaringan, shell, SSH) **nonaktif secara default** dan baru masuk schema
 model setelah diaktifkan di layar *Tool perangkat*. Kolom 🔒 = `requiresApproval`
 (dialog konfirmasi dulu bila "Minta izin aksi berisiko" aktif). Kolom **Izin** =
 permission runtime yang diminta otomatis saat tool dipanggil.
@@ -486,6 +494,16 @@ permission runtime yang diminta otomatis saat tool dipanggil.
 | Tool | Fungsi | Izin |
 |---|---|---|
 | `show_notification` | Kirim notifikasi lokal (`title`, `body`, `id`) | Notification (Android 13+) |
+
+### SSH
+| Tool | Fungsi | Izin |
+|---|---|---|
+| `ssh_list_accounts` | Daftar akun SSH tersimpan (tanpa kredensial) + status pilihan sesi | – |
+| `ssh_select_account` | Memilih akun hasil keputusan user (via ask_user) untuk sesi percakapan | – |
+| `ssh_exec` | Jalankan perintah di server terpilih (stdout/stderr/exit code, timeout) | – |
+| `sftp_list` | List direktori remote | – |
+| `sftp_get` | Unduh file remote ke sandbox sesi → tawarkan via `send_file_to_user` | – |
+| `sftp_put` | Unggah file sandbox sesi ke server | – |
 
 ### System
 | Tool | Fungsi | Izin |

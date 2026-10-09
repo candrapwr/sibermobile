@@ -25,6 +25,7 @@ import 'hardware/network_analysis_tools.dart';
 import 'hardware/nfc_tools.dart';
 import 'hardware/notification_tools.dart';
 import 'hardware/shell_tools.dart';
+import 'hardware/ssh_tools.dart';
 import 'hardware/speech_tools.dart';
 
 /// Every tool the app can expose, including tools the user cannot turn off.
@@ -43,6 +44,7 @@ final List<Tool> allTools = <Tool>[
   ...speechTools,
   ...notificationTools,
   ...shellTools,
+  ...sshTools,
   ...contactTools,
   ...appTools,
   ...nfcTools,
@@ -74,6 +76,7 @@ Map<String, List<Tool>> toolsByCategory() {
     'Speech',
     'Notification',
     'System',
+    'SSH',
     'Contacts',
     'Apps',
     'NFC',
