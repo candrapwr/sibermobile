@@ -16,7 +16,8 @@ class SiberLogo extends StatelessWidget {
           'assets/branding/sibermobile_icon.png',
           width: size,
           height: size,
-          fit: BoxFit.cover,
+          // The brand logo is not square — contain keeps it uncropped.
+          fit: BoxFit.contain,
           filterQuality: FilterQuality.high,
         ),
       ),
