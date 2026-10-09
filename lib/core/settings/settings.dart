@@ -95,6 +95,16 @@ const int defaultMaxTokens = 50000;
 /// keeps the tool schema — and therefore every request's token cost — small.
 /// Note: web_search is NOT here — with the Siber gateway it should work out
 /// of the box, and elsewhere it is gated by its own configuration anyway.
+/// Bump whenever defaultDisabledTools gains new tool names in an app
+/// update: loading older settings then merges those names in once, so
+/// users upgrading never get brand-new power tools silently enabled.
+const int kToolDefaultsVersion = 2;
+
+/// Tool names introduced as default-off per settings version.
+const Map<int, Set<String>> _toolDefaultsByVersion = {
+  2: {'ssh_client', 'sftp_client'},
+};
+
 const Set<String> defaultDisabledTools = {
   // Device & battery info.
   'get_device_info',
@@ -126,6 +136,18 @@ const Set<String> defaultDisabledTools = {
   'sftp_client',
 };
 
+/// Adds the default-off tools of every version newer than [savedVersion]
+/// to a loaded disabled set (once): those names cannot have been toggled
+/// by the user before they existed.
+Set<String> _migrateToolDefaults(Set<String> saved, int savedVersion) {
+  if (savedVersion >= kToolDefaultsVersion) return saved;
+  final merged = Set<String>.of(saved);
+  for (var v = savedVersion + 1; v <= kToolDefaultsVersion; v++) {
+    merged.addAll(_toolDefaultsByVersion[v] ?? const <String>{});
+  }
+  return merged;
+}
+
 class AppSettings {
   AppSettings({
     this.baseUrl = '',
@@ -146,6 +168,7 @@ class AppSettings {
     this.themeMode = AppThemeMode.system,
     this.approveDestructiveTools = true,
     this.disabledTools = defaultDisabledTools,
+    this.toolDefaultsVersion = kToolDefaultsVersion,
     this.sshAccounts = const [],
     this.sessionName = '',
   });
@@ -175,6 +198,9 @@ class AppSettings {
 
   /// Saved SSH accounts (metadata only — passwords live in secure storage).
   List<SshAccount> sshAccounts;
+
+  /// Which tool-defaults migration has been applied to this settings blob.
+  int toolDefaultsVersion;
   int maxIterations;
   bool includeUsageInStream;
 
@@ -224,6 +250,7 @@ class AppSettings {
     AppThemeMode? themeMode,
     bool? approveDestructiveTools,
     Set<String>? disabledTools,
+    int? toolDefaultsVersion,
     List<SshAccount>? sshAccounts,
     String? sessionName,
   }) => AppSettings(
@@ -246,6 +273,7 @@ class AppSettings {
     approveDestructiveTools:
         approveDestructiveTools ?? this.approveDestructiveTools,
     disabledTools: disabledTools ?? this.disabledTools,
+    toolDefaultsVersion: toolDefaultsVersion ?? this.toolDefaultsVersion,
     sshAccounts: sshAccounts ?? this.sshAccounts,
     sessionName: sessionName ?? this.sessionName,
   );
@@ -271,6 +299,7 @@ class AppSettings {
     'themeMode': themeMode.name,
     'approveDestructiveTools': approveDestructiveTools,
     'disabledTools': disabledTools.toList(),
+    'toolDefaultsVersion': toolDefaultsVersion,
     'sshAccounts': [for (final a in sshAccounts) a.toJson()],
     'sessionName': sessionName,
   };
@@ -300,8 +329,11 @@ class AppSettings {
     ),
     approveDestructiveTools: json['approveDestructiveTools'] as bool? ?? true,
     disabledTools:
-        (json['disabledTools'] as List?)?.map((e) => e.toString()).toSet() ??
-        defaultDisabledTools,
+        _migrateToolDefaults(
+          (json['disabledTools'] as List?)?.map((e) => e.toString()).toSet() ??
+              defaultDisabledTools,
+          (json['toolDefaultsVersion'] as num?)?.toInt() ?? 1,
+        ),
     sshAccounts: [
       for (final a in (json['sshAccounts'] as List?) ?? const <Object?>[])
         if (a is Map) SshAccount.fromJson(a),

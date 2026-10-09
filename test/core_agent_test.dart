@@ -618,6 +618,32 @@ void main() {
     );
   });
 
+  test('settings migration force-disables newly introduced default-off tools',
+      () {
+    // Settings saved before the SSH tools existed: old disabled list, no
+    // version marker. Loading it must merge ssh_client/sftp_client in as
+    // disabled — the user cannot have toggled names that did not exist.
+    final old = AppSettings.fromJson(const {
+      'disabledTools': ['web_search', 'shell_exec'],
+    });
+    expect(old.disabledTools.contains('ssh_client'), isTrue);
+    expect(old.disabledTools.contains('sftp_client'), isTrue);
+    // Previously saved names survive untouched.
+    expect(old.disabledTools.contains('shell_exec'), isTrue);
+
+    // Already-migrated settings (version marker present) are left alone:
+    // an explicit ON stays ON.
+    final migrated = AppSettings.fromJson(const {
+      'disabledTools': ['shell_exec'],
+      'toolDefaultsVersion': 2,
+    });
+    expect(migrated.disabledTools.contains('ssh_client'), isFalse);
+    expect(migrated.toolDefaultsVersion, 2);
+
+    // Fresh installs carry the current version.
+    expect(AppSettings().toolDefaultsVersion, kToolDefaultsVersion);
+  });
+
   test('system prompt carries the session workspace path when known', () {
     const workDir = '/data/user/0/com.idsiber.sibermobile/files/work/s1';
     final withPath = buildSystemPrompt(
