@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -531,23 +532,30 @@ class _ScanningImagePreview extends StatefulWidget {
 }
 
 class _ScanningImagePreviewState extends State<_ScanningImagePreview>
-    with SingleTickerProviderStateMixin {
-  // Created in initState (not a late field read during build): starting a
-  // ticker mid-build is fragile under rebuild storms (keyboard resizes).
-  late final AnimationController _scan;
+    with AutomaticKeepAliveClientMixin {
+  // The sweep is Timer-driven on purpose: on some devices the repeating
+  // AnimationController froze at the top under rebuild storms (keyboard
+  // resizes) and heavy image rasters. A plain timer repaints regardless of
+  // the ticker machinery, and keep-alive stops scroll-driven restarts.
+  static const _sweepMs = 1900;
+  double _t = 0;
+  Timer? _sweep;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    _scan = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1900),
-    )..repeat();
+    _sweep = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!mounted) return;
+      setState(() => _t = (_t + 16 / _sweepMs) % 1.0);
+    });
   }
 
   @override
   void dispose() {
-    _scan.dispose();
+    _sweep?.cancel();
     super.dispose();
   }
 
@@ -561,7 +569,9 @@ class _ScanningImagePreviewState extends State<_ScanningImagePreview>
     Widget full(ImageProvider provider) => ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 380),
       child: Image(
-        image: provider,
+        // Cap the decode width: full-res photos rastered on mobile GPUs are
+        // a major jank source while the sweep animates.
+        image: ResizeImage(provider, width: 1600),
         width: double.infinity,
         fit: BoxFit.contain,
         gaplessPlayback: true,
@@ -589,6 +599,7 @@ class _ScanningImagePreviewState extends State<_ScanningImagePreview>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final colors = Theme.of(context).colorScheme;
     final image = _buildImage();
 
@@ -643,10 +654,9 @@ class _ScanningImagePreviewState extends State<_ScanningImagePreview>
               ),
             ),
             // The sweeping scan band + bright center line.
-            AnimatedBuilder(
-              animation: _scan,
-              builder: (context, _) {
-                final dy = -1.0 + 2.0 * _scan.value;
+            Builder(
+              builder: (context) {
+                final dy = -1.0 + 2.0 * _t;
                 return Align(
                   alignment: Alignment(0, dy.clamp(-1.0, 1.0)),
                   child: Column(
