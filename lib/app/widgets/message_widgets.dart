@@ -377,9 +377,45 @@ class ToolCallBlockView extends StatelessWidget {
     final running =
         item.status == ToolCallStatus.running ||
         item.status == ToolCallStatus.pending;
+    final failed = item.status == ToolCallStatus.error;
+    final blockMargin = const EdgeInsets.fromLTRB(10, 3, 10, 3);
+
+    // File delivery shows the card alone — no tool-call chrome. Failures
+    // still render as a normal block so the error stays visible.
+    if (item.name == 'send_file_to_user' && !failed) {
+      if (sharedFile == null || running) return const SizedBox.shrink();
+      return Padding(
+        padding: blockMargin,
+        child: _SharedFileCard(
+          file: sharedFile,
+          onSave: onSaveFile == null
+              ? null
+              : () => _saveSharedFile(context, sharedFile),
+          resolveFile: resolveFile,
+        ),
+      );
+    }
+
+    // Live image-tool animations replace the whole block while running;
+    // the finished block (name + status) returns once the tool completes.
+    if (running && item.name == 'analyze_image') {
+      return Padding(
+        padding: blockMargin,
+        child: _ScanningImagePreview(
+          source: _toolArgs(item)['image']?.toString(),
+          resolveImageFile: resolveImageFile,
+        ),
+      );
+    }
+    if (running && item.name == 'generate_image') {
+      return Padding(
+        padding: blockMargin,
+        child: const _GeneratingImagePlaceholder(),
+      );
+    }
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(10, 3, 10, 3),
+      margin: blockMargin,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: visual.color.withValues(alpha: 0.07),
@@ -422,17 +458,6 @@ class ToolCallBlockView extends StatelessWidget {
               ),
             ],
           ),
-          if (running && item.name == 'analyze_image') ...[
-            const SizedBox(height: 8),
-            _ScanningImagePreview(
-              source: _toolArgs(item)['image']?.toString(),
-              resolveImageFile: resolveImageFile,
-            ),
-          ],
-          if (running && item.name == 'generate_image') ...[
-            const SizedBox(height: 8),
-            const _GeneratingImagePlaceholder(),
-          ],
           if (sharedFile != null && !running) ...[
             const SizedBox(height: 8),
             _SharedFileCard(
@@ -507,10 +532,18 @@ class _ScanningImagePreview extends StatefulWidget {
 
 class _ScanningImagePreviewState extends State<_ScanningImagePreview>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _scan = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1900),
-  )..repeat();
+  // Created in initState (not a late field read during build): starting a
+  // ticker mid-build is fragile under rebuild storms (keyboard resizes).
+  late final AnimationController _scan;
+
+  @override
+  void initState() {
+    super.initState();
+    _scan = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1900),
+    )..repeat();
+  }
 
   @override
   void dispose() {
@@ -698,10 +731,16 @@ class _GeneratingImagePlaceholder extends StatefulWidget {
 class _GeneratingImagePlaceholderState
     extends State<_GeneratingImagePlaceholder>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _shimmer = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat();
+  late final AnimationController _shimmer;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmer = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+  }
 
   @override
   void dispose() {

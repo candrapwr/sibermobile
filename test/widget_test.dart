@@ -486,7 +486,8 @@ void main() {
     await tester.pump();
 
     expect(find.byType(Image), findsOneWidget);
-    expect(find.text('analyze_image'), findsOneWidget);
+    // While running, the animation replaces the whole block — no tool name.
+    expect(find.text('analyze_image'), findsNothing);
     expect(find.byIcon(Icons.image_search_rounded), findsNothing);
     expect(tester.takeException(), isNull);
   });
