@@ -371,7 +371,7 @@ class _EmptyState extends StatelessWidget {
                     ],
                   ),
                 ),
-                child: const SiberLogo(size: 66),
+                child: const SiberLogo(size: 120),
               ),
               const SizedBox(height: 18),
               Text(
