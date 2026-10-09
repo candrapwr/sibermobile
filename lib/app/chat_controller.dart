@@ -371,6 +371,52 @@ class ChatController extends ChangeNotifier {
     return enabledTools;
   }
 
+  /// Updates an SSH account's metadata; a non-empty [password] replaces the
+  /// stored one (empty keeps it). If connection-relevant fields changed on
+  /// the account in use, the cached client is dropped so the next command
+  /// reconnects with the new details.
+  Future<void> updateSshAccount(
+    SshAccount account, {
+    String? name,
+    String? host,
+    int? port,
+    String? username,
+    String? password,
+  }) async {
+    if (password != null && password.isNotEmpty) {
+      await _settingsStore.writeSshPassword(account.id, password);
+    }
+    final updated = account.copyWith(
+      name: name,
+      host: host,
+      port: port,
+      username: username,
+    );
+    final connectionChanged = updated.host != account.host ||
+        updated.port != account.port ||
+        updated.username != account.username ||
+        (password != null && password.isNotEmpty);
+    if (connectionChanged && _selectedSshAccountId == account.id) {
+      try {
+        _sftpClient?.close();
+      } catch (_) {}
+      try {
+        _sshClient?.close();
+      } catch (_) {}
+      _sftpClient = null;
+      _sshClient = null;
+      _sshConnecting = null;
+    }
+    await saveSettings(
+      _settings.copyWith(
+        sshAccounts: [
+          for (final a in _settings.sshAccounts)
+            if (a.id == account.id) updated else a,
+        ],
+      ),
+    );
+  }
+
   /// Deletes an SSH account and its stored password; drops the active
   /// connection if that account was in use.
   Future<void> deleteSshAccount(String id) async {

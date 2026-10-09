@@ -103,6 +103,15 @@ class SshAccountsScreen extends StatelessWidget {
                           ),
                         ),
                         IconButton(
+                          tooltip: 'Edit akun',
+                          icon: Icon(
+                            Icons.edit_outlined,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          onPressed: () =>
+                              _showEditDialog(context, controller, account),
+                        ),
+                        IconButton(
                           tooltip: 'Hapus akun',
                           icon: Icon(
                             Icons.delete_outline_rounded,
@@ -263,6 +272,122 @@ class SshAccountsScreen extends StatelessWidget {
                   : 'Akun "${name.text.trim()}" tersimpan.',
             ),
           ),
+        );
+    }
+  }
+
+  Future<void> _showEditDialog(
+    BuildContext context,
+    ChatController controller,
+    SshAccount account,
+  ) async {
+    final formKey = GlobalKey<FormState>();
+    final name = TextEditingController(text: account.name);
+    final host = TextEditingController(text: account.host);
+    final port = TextEditingController(text: account.port.toString());
+    final username = TextEditingController(text: account.username);
+    final password = TextEditingController();
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AppModal(
+        title: 'Edit akun SSH',
+        subtitle: account.name,
+        icon: Icons.dns_outlined,
+        onClose: () => Navigator.pop(dialogContext, false),
+        footer: AppModal.actions(
+          dialogContext,
+          [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() == true) {
+                  Navigator.pop(dialogContext, true);
+                }
+              },
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+        child: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextFormField(
+                controller: name,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(labelText: 'Nama'),
+                validator: (v) =>
+                    (v ?? '').trim().isEmpty ? 'Wajib diisi' : null,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: host,
+                textInputAction: TextInputAction.next,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                decoration: const InputDecoration(labelText: 'Host'),
+                validator: (v) =>
+                    (v ?? '').trim().isEmpty ? 'Wajib diisi' : null,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: port,
+                textInputAction: TextInputAction.next,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Port'),
+                validator: (v) {
+                  final p = int.tryParse((v ?? '').trim());
+                  return (p == null || p < 1 || p > 65535)
+                      ? '1–65535'
+                      : null;
+                },
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: username,
+                textInputAction: TextInputAction.next,
+                autocorrect: false,
+                decoration: const InputDecoration(labelText: 'Username'),
+                validator: (v) =>
+                    (v ?? '').trim().isEmpty ? 'Wajib diisi' : null,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: password,
+                obscureText: true,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: const InputDecoration(
+                  labelText: 'Password baru',
+                  helperText: 'Kosongkan untuk mempertahankan password lama.',
+                  helperMaxLines: 2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (saved != true || !context.mounted) return;
+    await controller.updateSshAccount(
+      account,
+      name: name.text.trim(),
+      host: host.text.trim(),
+      port: int.parse(port.text.trim()),
+      username: username.text.trim(),
+      password: password.text.isEmpty ? null : password.text,
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text('Akun "${name.text.trim()}" diperbarui.')),
         );
     }
   }
