@@ -1,9 +1,9 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -518,72 +518,28 @@ Map<String, dynamic> _toolArgs(ToolCallBlock item) {
   return const {};
 }
 
-/// Live preview while `analyze_image` runs: the target image with a
-/// sweeping scan line and corner brackets. Falls back to a dark scanning
-/// panel when the source cannot be displayed (missing file, exotic format).
-class _ScanningImagePreview extends StatefulWidget {
+/// Live preview while `analyze_image` runs: the target image with the
+/// scanner Lottie overlay on top. Falls back to a scanning panel when the
+/// source cannot be displayed (missing file, exotic format).
+class _ScanningImagePreview extends StatelessWidget {
   const _ScanningImagePreview({required this.source, this.resolveImageFile});
 
   final String? source;
   final File? Function(String path)? resolveImageFile;
 
-  @override
-  State<_ScanningImagePreview> createState() => _ScanningImagePreviewState();
-}
-
-class _ScanningImagePreviewState extends State<_ScanningImagePreview>
-    with AutomaticKeepAliveClientMixin {
-  // The sweep is Timer-driven on purpose: on some devices the repeating
-  // AnimationController froze at the top under rebuild storms (keyboard
-  // resizes) and heavy image rasters. A plain timer repaints regardless of
-  // the ticker machinery, and keep-alive stops scroll-driven restarts.
-  static const _sweepMs = 1900;
-  double _t = 0;
-  Timer? _sweep;
-
-  @override
-  bool get wantKeepAlive => true;
-
-  void _ensureSweep() {
-    if (_sweep != null) return;
-    _sweep = Timer.periodic(const Duration(milliseconds: 16), (_) {
-      if (!mounted) return;
-      setState(() => _t = (_t + 16 / _sweepMs) % 1.0);
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _ensureSweep();
-  }
-
-  // Also started from build: a hot reload keeps the old State alive without
-  // re-running initState, which would otherwise leave the sweep frozen.
-  @override
-  void didUpdateWidget(covariant _ScanningImagePreview oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _ensureSweep();
-  }
-
-  @override
-  void dispose() {
-    _sweep?.cancel();
-    super.dispose();
-  }
+  static const _boxHeight = 300.0;
 
   Widget? _buildImage() {
-    final src = widget.source?.trim();
+    final src = source?.trim();
     if (src == null || src.isEmpty) return null;
     Widget fallback(BuildContext _, Object _, StackTrace? _) =>
         const SizedBox.shrink();
-    // Contain inside a fixed-height box: the whole image stays visible
-    // (letterboxed only for extreme aspect ratios) while the bounded
-    // layout keeps the sweep animation smooth — dynamic-height stacks
-    // proved to freeze the animation on-device.
+    // Contain inside the fixed-height box: the whole image stays visible
+    // (letterboxed only for extreme aspect ratios) while the bounded layout
+    // keeps animations smooth — dynamic-height stacks froze on-device.
     Widget full(ImageProvider provider) => Image(
       // Cap the decode width: full-res photos rastered on mobile GPUs are
-      // a major jank source while the sweep animates.
+      // a major jank source while the overlay animates.
       image: ResizeImage(provider, width: 1600),
       width: double.infinity,
       fit: BoxFit.contain,
@@ -604,227 +560,97 @@ class _ScanningImagePreviewState extends State<_ScanningImagePreview>
     if (lower.startsWith('http://') || lower.startsWith('https://')) {
       return full(NetworkImage(src));
     }
-    final file = widget.resolveImageFile?.call(src);
+    final file = resolveImageFile?.call(src);
     if (file == null) return null;
     return full(FileImage(file));
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-    _ensureSweep();
     final colors = Theme.of(context).colorScheme;
     final image = _buildImage();
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: Container(
+        height: _boxHeight,
         color: colors.surfaceContainerHighest,
         child: Stack(
-          // The image is the sizing (non-positioned) child; overlays fill
-          // whatever height its aspect ratio produces. The no-image
-          // fallback keeps the fixed panel.
+          fit: StackFit.expand,
           children: [
             if (image != null)
               image
             else
-              SizedBox(
-                height: 210,
-                width: double.infinity,
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.image_search_rounded,
-                        size: 30,
-                        color: colors.primary,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Memindai gambar…',
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(color: colors.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            // Slight dark veil so the sweep reads on bright images.
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.22),
-                      Colors.black.withValues(alpha: 0.10),
-                      Colors.black.withValues(alpha: 0.22),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // The sweeping scan band + bright center line.
-            Builder(
-              builder: (context) {
-                final dy = -1.0 + 2.0 * _t;
-                return Align(
-                  alignment: Alignment(0, dy.clamp(-1.0, 1.0)),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              colors.primary.withValues(alpha: 0.0),
-                              colors.primary.withValues(alpha: 0.32),
-                              colors.primary.withValues(alpha: 0.0),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Container(
-                        width: double.infinity,
-                        height: 2,
-                        color: colors.primary.withValues(alpha: 0.95),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            // Corner brackets for the "scanner" look.
-            _bracket(colors, alignment: Alignment.topLeft),
-            _bracket(colors, alignment: Alignment.topRight),
-            _bracket(colors, alignment: Alignment.bottomLeft),
-            _bracket(colors, alignment: Alignment.bottomRight),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _bracket(ColorScheme colors, {required Alignment alignment}) {
-    return Align(
-      alignment: alignment,
-      child: SizedBox(
-        width: 18,
-        height: 18,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border(
-              top: alignment.y < 0
-                  ? BorderSide(color: colors.primary, width: 2)
-                  : BorderSide.none,
-              bottom: alignment.y > 0
-                  ? BorderSide(color: colors.primary, width: 2)
-                  : BorderSide.none,
-              left: alignment.x < 0
-                  ? BorderSide(color: colors.primary, width: 2)
-                  : BorderSide.none,
-              right: alignment.x > 0
-                  ? BorderSide(color: colors.primary, width: 2)
-                  : BorderSide.none,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Live placeholder while `generate_image` runs: a shimmering image frame
-/// with a pulsing sparkle. Replaced by the normal finished tool card (with
-/// its inline image preview) once the tool completes.
-class _GeneratingImagePlaceholder extends StatefulWidget {
-  const _GeneratingImagePlaceholder();
-
-  @override
-  State<_GeneratingImagePlaceholder> createState() =>
-      _GeneratingImagePlaceholderState();
-}
-
-class _GeneratingImagePlaceholderState
-    extends State<_GeneratingImagePlaceholder>
-    with SingleTickerProviderStateMixin {
-  AnimationController? _shimmer;
-
-  void _ensureShimmer() {
-    if (_shimmer != null) return;
-    _shimmer = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _ensureShimmer();
-  }
-
-  @override
-  void dispose() {
-    _shimmer?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    _ensureShimmer();
-    final colors = Theme.of(context).colorScheme;
-    final base = colors.surfaceContainerHighest;
-    final highlight = colors.primary.withValues(alpha: 0.22);
-    final shimmer = _shimmer!;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: AnimatedBuilder(
-          animation: shimmer,
-          builder: (context, _) {
-            final t = shimmer.value;
-            return DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment(-1.0 + 2.0 * t, -0.6),
-                  end: Alignment(0.0 + 2.0 * t, 0.6),
-                  colors: [base, highlight, base],
-                ),
-              ),
-              child: Center(
+              Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Transform.scale(
-                      scale: 1.0 + 0.12 * math.sin(t * 2 * math.pi).abs(),
-                      child: Icon(
-                        Icons.auto_awesome_rounded,
-                        size: 30,
-                        color: colors.primary,
-                      ),
+                    Icon(
+                      Icons.image_search_rounded,
+                      size: 30,
+                      color: colors.primary,
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Menghasilkan gambar…',
+                      'Memindai gambar…',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: colors.onSurfaceVariant,
-                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
               ),
-            );
-          },
+            // Scanner effect overlay, stretched over the whole preview.
+            Positioned.fill(
+              child: Lottie.asset(
+                'assets/lottie/scanner.json',
+                fit: BoxFit.fill,
+                errorBuilder: (context, error, stackTrace) =>
+                    const SizedBox.shrink(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Live placeholder while `generate_image` runs: the scanner Lottie plus a
+/// caption. Replaced by the normal finished tool card (with its inline image
+/// preview) once the tool completes.
+class _GeneratingImagePlaceholder extends StatelessWidget {
+  const _GeneratingImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 300,
+        color: colors.surfaceContainerHighest,
+        child: Column(
+          children: [
+            Expanded(
+              child: Lottie.asset(
+                'assets/lottie/scanner.json',
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) =>
+                    const SizedBox.shrink(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                'Menghasilkan gambar…',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

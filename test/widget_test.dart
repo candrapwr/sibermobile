@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter/services.dart';
+import 'package:lottie/lottie.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -486,6 +487,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(Image), findsOneWidget);
+    expect(find.byType(Lottie), findsOneWidget);
     // While running, the animation replaces the whole block — no tool name.
     expect(find.text('analyze_image'), findsNothing);
     expect(find.byIcon(Icons.image_search_rounded), findsNothing);
@@ -508,6 +510,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Menghasilkan gambar…'), findsOneWidget);
+    expect(find.byType(Lottie), findsOneWidget);
     expect(find.byType(Image), findsNothing);
     expect(tester.takeException(), isNull);
   });
