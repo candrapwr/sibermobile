@@ -577,19 +577,18 @@ class _ScanningImagePreviewState extends State<_ScanningImagePreview>
     if (src == null || src.isEmpty) return null;
     Widget fallback(BuildContext _, Object _, StackTrace? _) =>
         const SizedBox.shrink();
-    // Contain with a height cap: the whole image stays visible and sizes
-    // the scanning box by its natural aspect ratio.
-    Widget full(ImageProvider provider) => ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 380),
-      child: Image(
-        // Cap the decode width: full-res photos rastered on mobile GPUs are
-        // a major jank source while the sweep animates.
-        image: ResizeImage(provider, width: 1600),
-        width: double.infinity,
-        fit: BoxFit.contain,
-        gaplessPlayback: true,
-        errorBuilder: fallback,
-      ),
+    // Contain inside a fixed-height box: the whole image stays visible
+    // (letterboxed only for extreme aspect ratios) while the bounded
+    // layout keeps the sweep animation smooth — dynamic-height stacks
+    // proved to freeze the animation on-device.
+    Widget full(ImageProvider provider) => Image(
+      // Cap the decode width: full-res photos rastered on mobile GPUs are
+      // a major jank source while the sweep animates.
+      image: ResizeImage(provider, width: 1600),
+      width: double.infinity,
+      fit: BoxFit.contain,
+      gaplessPlayback: true,
+      errorBuilder: fallback,
     );
     if (src.startsWith('data:image/')) {
       final comma = src.indexOf(',');
