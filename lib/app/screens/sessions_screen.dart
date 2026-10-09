@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/session/session_store.dart';
 import '../chat_controller.dart';
+import '../widgets/app_modal.dart';
 import '../widgets/common_widgets.dart';
 
 class SessionsScreen extends StatefulWidget {
@@ -40,32 +41,35 @@ class _SessionsScreenState extends State<SessionsScreen> {
     }
     final approved = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: Icon(
-          Icons.delete_sweep_rounded,
-          color: Theme.of(dialogContext).colorScheme.error,
+      builder: (dialogContext) => AppModal(
+        title: 'Hapus semua riwayat?',
+        subtitle: '${sessions.length} percakapan',
+        icon: Icons.delete_sweep_rounded,
+        destructive: true,
+        onClose: () => Navigator.pop(dialogContext, false),
+        footer: AppModal.actions(
+          dialogContext,
+          [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Hapus semua'),
+            ),
+          ],
         ),
-        title: const Text('Hapus semua riwayat?'),
-        content: Text(
+        child: Text(
           'Seluruh ${sessions.length} percakapan beserta lampiran dan file '
           'hasil kerjanya akan dihapus permanen dari perangkat. Tindakan ini '
           'tidak dapat dibatalkan.',
-          textAlign: TextAlign.center,
+          style: Theme.of(dialogContext).textTheme.bodyMedium,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Hapus semua'),
-          ),
-        ],
       ),
     );
     if (approved != true) return;
@@ -271,30 +275,33 @@ class _SessionsList extends StatelessWidget {
   ) async {
     final approved = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: Icon(
-          Icons.delete_outline_rounded,
-          color: Theme.of(dialogContext).colorScheme.error,
-        ),
-        title: const Text('Hapus percakapan?'),
-        content: Text(
-          '“${session.name?.isNotEmpty == true ? session.name : 'Tanpa judul'}” akan dihapus permanen dari perangkat.',
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+      builder: (dialogContext) => AppModal(
+        title: 'Hapus percakapan?',
+        subtitle: session.name?.isNotEmpty == true ? session.name : 'Tanpa judul',
+        icon: Icons.delete_outline_rounded,
+        destructive: true,
+        onClose: () => Navigator.pop(dialogContext, false),
+        footer: AppModal.actions(
+          dialogContext,
+          [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
             ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Hapus'),
-          ),
-        ],
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Hapus'),
+            ),
+          ],
+        ),
+        child: Text(
+          '“${session.name?.isNotEmpty == true ? session.name : 'Tanpa judul'}” akan dihapus permanen dari perangkat.',
+          style: Theme.of(dialogContext).textTheme.bodyMedium,
+        ),
       ),
     );
     if (approved != true) return;

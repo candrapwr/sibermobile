@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/settings/settings.dart';
 import '../chat_controller.dart';
+import '../widgets/app_modal.dart';
 import '../widgets/common_widgets.dart';
 
 class SshAccountsScreen extends StatelessWidget {
@@ -136,9 +137,28 @@ class SshAccountsScreen extends StatelessWidget {
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Tambah akun SSH'),
-        content: Form(
+      builder: (dialogContext) => AppModal(
+        title: 'Tambah akun SSH',
+        icon: Icons.dns_outlined,
+        onClose: () => Navigator.pop(dialogContext, false),
+        footer: AppModal.actions(
+          dialogContext,
+          [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() == true) {
+                  Navigator.pop(dialogContext, true);
+                }
+              },
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+        child: Form(
           key: formKey,
           child: SingleChildScrollView(
             child: Column(
@@ -221,20 +241,6 @@ class SshAccountsScreen extends StatelessWidget {
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() == true) {
-                Navigator.pop(dialogContext, true);
-              }
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
       ),
     );
     if (saved != true || !context.mounted) return;
@@ -268,31 +274,34 @@ class SshAccountsScreen extends StatelessWidget {
   ) async {
     final approved = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: Icon(
-          Icons.delete_outline_rounded,
-          color: Theme.of(dialogContext).colorScheme.error,
+      builder: (dialogContext) => AppModal(
+        title: 'Hapus akun SSH?',
+        subtitle: account.name,
+        icon: Icons.delete_outline_rounded,
+        destructive: true,
+        onClose: () => Navigator.pop(dialogContext, false),
+        footer: AppModal.actions(
+          dialogContext,
+          [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Hapus'),
+            ),
+          ],
         ),
-        title: const Text('Hapus akun SSH?'),
-        content: Text(
+        child: Text(
           'Akun "${account.name}" beserta password tersimpannya akan dihapus '
           'dari perangkat.',
-          textAlign: TextAlign.center,
+          style: Theme.of(dialogContext).textTheme.bodyMedium,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Hapus'),
-          ),
-        ],
       ),
     );
     if (approved != true) return;
