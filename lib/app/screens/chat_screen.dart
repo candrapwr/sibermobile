@@ -327,54 +327,11 @@ class _MenuRow extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatefulWidget {
+class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.configured, required this.onOpenSettings});
 
   final bool configured;
   final VoidCallback onOpenSettings;
-
-  @override
-  State<_EmptyState> createState() => _EmptyStateState();
-}
-
-class _EmptyStateState extends State<_EmptyState> {
-  static const _taglines = <String>[
-    'Tanya apa saja — dari ide harian sampai riset teknis.',
-    'Kirim HTTP request, cek jaringan, atau analisa kartu NFC.',
-    'Aktifkan tool perangkat (kamera, TTS, aplikasi…) dari layar Tool.',
-    'Riwayat chat dan API key tetap tersimpan di perangkat Anda.',
-  ];
-
-  int _tagIndex = 0;
-  Timer? _tagTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _syncTimer();
-  }
-
-  @override
-  void didUpdateWidget(covariant _EmptyState oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.configured != widget.configured) _syncTimer();
-  }
-
-  @override
-  void dispose() {
-    _tagTimer?.cancel();
-    super.dispose();
-  }
-
-  void _syncTimer() {
-    _tagTimer?.cancel();
-    _tagTimer = null;
-    if (widget.configured) {
-      _tagTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-        if (mounted) setState(() => _tagIndex = (_tagIndex + 1) % _taglines.length);
-      });
-    }
-  }
 
   String get _greeting {
     final hour = DateTime.now().hour;
@@ -418,7 +375,7 @@ class _EmptyStateState extends State<_EmptyState> {
               ),
               const SizedBox(height: 18),
               Text(
-                widget.configured
+                configured
                     ? '$_greeting 👋'
                     : 'Konfigurasi provider dulu',
                 style: theme.textTheme.headlineSmall?.copyWith(
@@ -427,91 +384,25 @@ class _EmptyStateState extends State<_EmptyState> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              if (!widget.configured)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  child: Text(
-                    'Hubungkan provider OpenAI-compatible untuk mulai mengobrol dengan asisten AI Anda.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Text(
+                  configured
+                      ? 'SiberMobile siap membantu.'
+                      : 'Hubungkan provider OpenAI-compatible untuk mulai '
+                            'mengobrol dengan asisten AI Anda.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: configured
+                        ? colors.onSurface
+                        : colors.onSurfaceVariant,
                   ),
-                )
-              else ...[
-                Text(
-                  'SiberMobile siap membantu.',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 14),
-                // Rotating capability line: informative, not clickable
-                // shortcuts.
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 450),
-                  switchInCurve: Curves.easeOut,
-                  switchOutCurve: Curves.easeIn,
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0, 0.35),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
-                    ),
-                  ),
-                  child: ConstrainedBox(
-                    key: ValueKey(_tagIndex),
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.bolt_rounded,
-                          size: 16,
-                          color: colors.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            _taglines[_tagIndex],
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colors.onSurfaceVariant,
-                            ),
-                            textAlign: TextAlign.left,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // Dot indicator for the rotating line.
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var i = 0; i < _taglines.length; i++)
-                      Container(
-                        width: i == _tagIndex ? 16 : 6,
-                        height: 6,
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        decoration: BoxDecoration(
-                          color: i == _tagIndex
-                              ? colors.primary
-                              : colors.outlineVariant,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-              if (!widget.configured) ...[
+              ),
+              if (!configured) ...[
                 const SizedBox(height: 16),
                 FilledButton.icon(
-                  onPressed: widget.onOpenSettings,
+                  onPressed: onOpenSettings,
                   icon: const Icon(Icons.settings),
                   label: const Text('Buka Pengaturan'),
                 ),
