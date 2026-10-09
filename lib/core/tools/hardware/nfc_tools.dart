@@ -111,9 +111,14 @@ class NfcTransceiveTool extends Tool {
       '(9000 = success); e.g. select an application AID, read records, or run '
       'any command the card supports. For tags without IsoDep the frame goes '
       'to NfcA/B/F/V native commands instead (e.g. Mifare Ultralight READ = '
-      '30xx). Requires an active session: run nfc_analyze first and keep the '
-      'tag on the reader. Only analyze tags the user owns; some commands can '
-      'permanently alter a card.';
+      '30xx). tech=mifareUltralight targets the Ultralight command set '
+      'directly. MIFARE CLASSIC CANNOT BE READ with raw frames — its sectors '
+      'need dedicated authenticate/read commands this tool does not expose; '
+      'use the metadata from nfc_analyze instead. Each command opens and '
+      'closes one connection, so consecutive transceives work without '
+      're-tapping. Requires an active session: run nfc_analyze first and '
+      'keep the tag on the reader. 6E00/6Axx responses mean the card itself '
+      'rejected the instruction, not a connection problem.';
 
   @override
   String get category => 'NFC';
@@ -133,10 +138,12 @@ class NfcTransceiveTool extends Tool {
       },
       'tech': <String, dynamic>{
         'type': 'string',
-        'enum': <String>['auto', 'isoDep', 'nfcA', 'nfcB', 'nfcF', 'nfcV'],
+        'enum': <String>[
+          'auto', 'isoDep', 'nfcA', 'nfcB', 'nfcF', 'nfcV', 'mifareUltralight',
+        ],
         'description':
             'Which tag technology to use (default auto: IsoDep if present, '
-            'else NfcA/B/F/V).',
+            'else NfcA/B/F/V). MIFARE Classic has no raw-frame support.',
       },
     },
     'required': <String>['dataHex'],

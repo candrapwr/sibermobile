@@ -15,6 +15,8 @@ import android.nfc.NdefMessage
 import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
 import android.nfc.Tag
+import android.nfc.TagLostException
+import java.io.IOException
 import android.nfc.tech.IsoDep
 import android.nfc.tech.MifareClassic
 import android.nfc.tech.MifareUltralight
@@ -64,6 +66,17 @@ import java.util.concurrent.TimeUnit
  * kept identical to those plugins.
  */
 class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandler {
+
+    /**
+     * The foreground activity, attached by MainActivity. The bridge itself
+     * lives on the application context (cached engine), but NFC reader mode
+     * is activity-scoped — without this reference nfc_analyze can never
+     * start discovery.
+     */
+    @Volatile
+    var activity: Activity? = null
+
+    private fun nfcActivity(): Activity? = activity ?: context as? Activity
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -331,7 +344,7 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
             if (nfcReaderEnabled) {
                 nfcReaderEnabled = false
                 val adapter = nfcAdapterOrNull()
-                val activity = context as? Activity
+                val activity = nfcActivity()
                 if (adapter != null && activity != null) {
                     try {
                         adapter.disableReaderMode(activity)
@@ -380,7 +393,7 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
 
             var tag = currentNfcTag()
             if (tag == null) {
-                val activity = context as? Activity
+                val activity = nfcActivity()
                 if (activity == null) {
                     mainHandler.post {
                         result.success(mapOf("found" to false, "error" to "No foreground activity for reader mode."))
@@ -447,7 +460,7 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
         val info = linkedMapOf<String, Any?>()
         info["found"] = true
         info["idHex"] = bytesToHex(tag.id)
-        info["techList"] = tag.techList.map { it.substringAfterLast('.') }
+        info["techList"] = tag.techList.map { it.substringAfterLast('.') }.distinct()
         try {
             NfcA.get(tag)?.let {
                 info["nfcA"] = mapOf(
@@ -615,21 +628,49 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
             }
 
             val techs = tag.techList
+            val available = techs.map { it.substringAfterLast('.') }.distinct()
+            val requested = tech.trim().lowercase()
+
+            // MIFARE Classic sector data needs authenticate/read commands,
+            // not raw frames — reject with guidance instead of a confusing
+            // "tech not exposed" message.
+            if (requested == "mifareclassic") {
+                finish(
+                    mapOf(
+                        "error" to "MIFARE Classic does not accept raw transceive frames: " +
+                            "its sectors need authenticateSectorWithKey + readBlock calls. " +
+                            "The tag's metadata (type, size, sectors, blocks) is already in " +
+                            "the nfc_analyze result.",
+                    ),
+                )
+                return@execute
+            }
+
             val selected: TagTechnology? = when {
-                (tech == "isoDep" || tech == "auto") &&
+                (requested == "isodep" || requested == "auto") &&
                     techs.contains("android.nfc.tech.IsoDep") -> IsoDep.get(tag)
-                (tech == "nfcA" || tech == "auto") &&
+                (requested == "nfca" || requested == "auto") &&
                     techs.contains("android.nfc.tech.NfcA") -> NfcA.get(tag)
-                (tech == "nfcB" || tech == "auto") &&
+                (requested == "nfcb" || requested == "auto") &&
                     techs.contains("android.nfc.tech.NfcB") -> NfcB.get(tag)
-                (tech == "nfcF" || tech == "auto") &&
+                (requested == "nfcf" || requested == "auto") &&
                     techs.contains("android.nfc.tech.NfcF") -> NfcF.get(tag)
-                (tech == "nfcV" || tech == "auto") &&
+                (requested == "nfcv" || requested == "auto") &&
                     techs.contains("android.nfc.tech.NfcV") -> NfcV.get(tag)
+                requested == "mifareultralight" &&
+                    techs.contains("android.nfc.tech.MifareUltralight") ->
+                    MifareUltralight.get(tag)
                 else -> null
             }
             if (selected == null) {
-                finish(mapOf("error" to "The tag does not expose tech '$tech'. Available: ${techs.joinToString { it.substringAfterLast('.') }}"))
+                finish(
+                    mapOf(
+                        "error" to "Tech '${tech.trim()}' is not available on this tag. " +
+                            "Available: ${available.joinToString()}. Supported values: auto, " +
+                            "isoDep, nfcA, nfcB, nfcF, nfcV, mifareUltralight " +
+                            "(mifareClassic has no raw-frame support).",
+                    ),
+                )
                 return@execute
             }
 
@@ -639,13 +680,17 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
                 is NfcB -> selected.maxTransceiveLength
                 is NfcF -> selected.maxTransceiveLength
                 is NfcV -> selected.maxTransceiveLength
+                is MifareUltralight -> selected.maxTransceiveLength
                 else -> 0
             }
             if (maxLen in 1 until bytes.size) {
-                finish(mapOf("error" to "Frame is ${bytes.size} bytes but the tech accepts at most $maxLen."))
+                finish(mapOf("error" to "Frame is ${bytes.size} bytes but ${selected.javaClass.simpleName} accepts at most $maxLen."))
                 return@execute
             }
 
+            // One connection per command: connect → transceive → close.
+            // Leaving it open is what caused "Only one TagTechnology can be
+            // connected at a time" on the second transceive.
             try {
                 selected.connect()
                 val response = when (selected) {
@@ -654,6 +699,7 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
                     is NfcB -> selected.transceive(bytes)
                     is NfcF -> selected.transceive(bytes)
                     is NfcV -> selected.transceive(bytes)
+                    is MifareUltralight -> selected.transceive(bytes)
                     else -> throw IllegalStateException("unsupported tech")
                 }
                 touchNfcSession()
@@ -663,13 +709,29 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
                         "tech" to selected.javaClass.simpleName,
                     ),
                 )
+            } catch (e: TagLostException) {
+                finish(
+                    mapOf(
+                        "error" to "The tag left the reader field while ${selected.javaClass.simpleName} was busy. Hold the card steady and retry; if it keeps happening, rerun nfc_analyze.",
+                    ),
+                )
+            } catch (e: IOException) {
+                finish(
+                    mapOf(
+                        "error" to "${selected.javaClass.simpleName} transceive failed: ${e.message ?: "I/O error"}",
+                        "hint" to "Either the card does not support this command (check CLA/INS and parameters — e.g. 6E00 means 'instruction not supported') or the RF link dropped. Keep the card on the reader and retry.",
+                    ),
+                )
             } catch (e: Exception) {
                 finish(
                     mapOf(
-                        "error" to (e.message ?: "transceive failed"),
-                        "hint" to "The tag may have been removed from the reader; run nfc_analyze again.",
+                        "error" to "${selected.javaClass.simpleName} error: ${e.message ?: "transceive failed"}",
                     ),
                 )
+            } finally {
+                try {
+                    selected.close()
+                } catch (_: Exception) {}
             }
         }
     }
@@ -697,6 +759,7 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
                 finish(mapOf("error" to "The tag is not NDEF-formatted; this app cannot format blank tags."))
                 return@execute
             }
+            var connected = false
             val out = try {
                 val messages = records.map { r ->
                     val kind = r["kind"] as? String ?: "text"
@@ -715,6 +778,7 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
                     return@execute
                 }
                 ndef.connect()
+                connected = true
                 if (!ndef.isWritable) {
                     finish(mapOf("error" to "The tag is read-only."))
                     return@execute
@@ -724,6 +788,14 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
             } catch (e: Exception) {
                 finish(mapOf("error" to (e.message ?: "write failed")))
                 return@execute
+            } finally {
+                // Same leak as transceive: an open Ndef connection blocks
+                // every later TagTechnology on this tag.
+                if (connected) {
+                    try {
+                        ndef.close()
+                    } catch (_: Exception) {}
+                }
             }
             touchNfcSession()
             finish(mapOf("ok" to out))

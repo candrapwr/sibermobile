@@ -13,17 +13,21 @@ import io.flutter.plugin.common.MethodChannel
  * inside the process that BusyService keeps alive, so an in-flight turn
  * continues in the background and the UI resumes exactly where it was.
  *
- * DeviceBridge is registered here with the application context; anything
- * activity-scoped (NFC reader mode, permission dialogs) simply reports an
- * error while the app is closed instead of crashing.
+ * DeviceBridge is registered here with the application context; MainActivity
+ * attaches itself to the bridge while started so activity-scoped features
+ * (NFC reader mode, permission dialogs) keep working.
  */
 class SiberApplication : Application() {
 
     lateinit var engine: FlutterEngine
         private set
 
+    lateinit var deviceBridge: DeviceBridge
+        private set
+
     override fun onCreate() {
         super.onCreate()
+        deviceBridge = DeviceBridge(this)
         engine = FlutterEngine(this)
         engine.dartExecutor.executeDartEntrypoint(
             DartExecutor.DartEntrypoint.createDefault(),
@@ -32,7 +36,7 @@ class SiberApplication : Application() {
         // it here is what makes the cached-engine attach work.
         FlutterEngineCache.getInstance().put(ENGINE_ID, engine)
         MethodChannel(engine.dartExecutor.binaryMessenger, CHANNEL)
-            .setMethodCallHandler(DeviceBridge(this))
+            .setMethodCallHandler(deviceBridge)
     }
 
     companion object {
