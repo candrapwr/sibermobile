@@ -333,29 +333,42 @@ class ChatController extends ChangeNotifier {
 
   /// Saves a new SSH account; the password goes straight to secure storage
   /// and never enters settings JSON.
-  Future<void> addSshAccount({
+  ///
+  /// Returns true when this was the FIRST account and the SSH tools were
+  /// auto-enabled with it — adding an account clearly signals intent to use
+  /// SSH, but later additions never re-enable tools the user turned off.
+  Future<bool> addSshAccount({
     required String name,
     required String host,
     required int port,
     required String username,
     required String password,
   }) async {
+    final wasEmpty = _settings.sshAccounts.isEmpty;
     final id = 'ssh_${DateTime.now().microsecondsSinceEpoch}';
     await _settingsStore.writeSshPassword(id, password);
-    await saveSettings(
-      _settings.copyWith(
-        sshAccounts: [
-          ..._settings.sshAccounts,
-          SshAccount(
-            id: id,
-            name: name,
-            host: host,
-            port: port,
-            username: username,
-          ),
-        ],
-      ),
+    var next = _settings.copyWith(
+      sshAccounts: [
+        ..._settings.sshAccounts,
+        SshAccount(
+          id: id,
+          name: name,
+          host: host,
+          port: port,
+          username: username,
+        ),
+      ],
     );
+    var enabledTools = false;
+    if (wasEmpty) {
+      final disabled = Set<String>.of(_settings.disabledTools)
+        ..remove('ssh_client')
+        ..remove('sftp_client');
+      enabledTools = true;
+      next = next.copyWith(disabledTools: disabled);
+    }
+    await saveSettings(next);
+    return enabledTools;
   }
 
   /// Deletes an SSH account and its stored password; drops the active

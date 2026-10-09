@@ -238,7 +238,7 @@ class SshAccountsScreen extends StatelessWidget {
       ),
     );
     if (saved != true || !context.mounted) return;
-    await controller.addSshAccount(
+    final enabledTools = await controller.addSshAccount(
       name: name.text.trim(),
       host: host.text.trim(),
       port: int.parse(port.text.trim()),
@@ -250,7 +250,12 @@ class SshAccountsScreen extends StatelessWidget {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
-            content: Text('Akun "${name.text.trim()}" tersimpan.'),
+            content: Text(
+              enabledTools
+                  ? 'Akun "${name.text.trim()}" tersimpan — tool SSH & SFTP '
+                        'diaktifkan.'
+                  : 'Akun "${name.text.trim()}" tersimpan.',
+            ),
           ),
         );
     }
