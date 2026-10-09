@@ -162,7 +162,7 @@ class _ToolOverview extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.primary,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,7 +174,7 @@ class _ToolOverview extends StatelessWidget {
                 height: 38,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Icon(
                   Icons.auto_fix_high_rounded,
@@ -344,7 +344,7 @@ class _ToolRow extends StatelessWidget {
                 color: enabled
                     ? theme.colorScheme.primary.withValues(alpha: 0.1)
                     : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(
                 tool.isCoreTool

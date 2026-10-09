@@ -68,7 +68,7 @@ class SshAccountsScreen extends StatelessWidget {
                             color: Theme.of(
                               context,
                             ).colorScheme.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: Icon(
                             Icons.dns_outlined,

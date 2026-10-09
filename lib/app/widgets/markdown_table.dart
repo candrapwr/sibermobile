@@ -199,7 +199,7 @@ class MarkdownTableView extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: hairline),
       ),
       child: LayoutBuilder(

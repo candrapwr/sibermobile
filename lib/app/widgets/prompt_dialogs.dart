@@ -84,12 +84,12 @@ class _AskUserDialogState extends State<_AskUserDialog> {
     final request = widget.request;
     return Dialog(
       backgroundColor: colors.surfaceContainerLow,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 26, vertical: 22),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -102,7 +102,7 @@ class _AskUserDialogState extends State<_AskUserDialog> {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: colors.primary.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(
                       Icons.question_answer_rounded,
@@ -177,7 +177,7 @@ class _AskUserDialogState extends State<_AskUserDialog> {
                             vertical: 11,
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                         ),
                         child: Text(choice),
@@ -206,7 +206,7 @@ class _AskUserDialogState extends State<_AskUserDialog> {
                       vertical: 13,
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(6),
                       borderSide: BorderSide.none,
                     ),
                   ),
@@ -232,7 +232,7 @@ class _AskUserDialogState extends State<_AskUserDialog> {
                           vertical: 11,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                       ),
                       icon: const Icon(Icons.send_rounded, size: 17),
@@ -264,7 +264,7 @@ class _ApprovalDialog extends StatelessWidget {
         height: 44,
         decoration: BoxDecoration(
           color: theme.colorScheme.errorContainer,
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Icon(
           Icons.shield_outlined,
@@ -292,7 +292,7 @@ class _ApprovalDialog extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
                   children: [
@@ -339,7 +339,7 @@ class _ApprovalDialog extends StatelessWidget {
                   padding: const EdgeInsets.all(9),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: SelectableText(
                     const JsonEncoder.withIndent('  ').convert(args),

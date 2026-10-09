@@ -135,7 +135,7 @@ class _SessionsList extends StatelessWidget {
                   height: 40,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Icon(
                     Icons.forum_rounded,
@@ -186,7 +186,7 @@ class _SessionsList extends StatelessWidget {
                     color: current
                         ? theme.colorScheme.primaryContainer
                         : theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Icon(
                     current
@@ -339,7 +339,7 @@ class _EmptySessions extends StatelessWidget {
               height: 64,
               decoration: BoxDecoration(
                 color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 Icons.mark_chat_unread_outlined,

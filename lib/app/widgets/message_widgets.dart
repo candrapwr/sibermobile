@@ -36,9 +36,9 @@ class UserBubbleView extends StatelessWidget {
           color: bubbleColor,
           border: Border.all(color: bubbleText.withValues(alpha: 0.12)),
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(14),
-            topRight: Radius.circular(14),
-            bottomLeft: Radius.circular(14),
+            topLeft: Radius.circular(6),
+            topRight: Radius.circular(6),
+            bottomLeft: Radius.circular(6),
             bottomRight: Radius.circular(4),
           ),
         ),
@@ -62,7 +62,7 @@ class UserBubbleView extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
                   color: bubbleText.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -183,7 +183,7 @@ class _AssistantMarkdown extends StatelessWidget {
       blockquoteDecoration: BoxDecoration(
         color: colors.primary.withValues(alpha: 0.06),
         border: Border(left: BorderSide(color: colors.primary, width: 3)),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       code: theme.textTheme.bodySmall?.copyWith(
         fontFamily: 'monospace',
@@ -195,7 +195,7 @@ class _AssistantMarkdown extends StatelessWidget {
       codeblockPadding: const EdgeInsets.all(10),
       codeblockDecoration: BoxDecoration(
         color: codeBackground,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color: colors.outlineVariant.withValues(alpha: 0.55),
         ),
@@ -210,7 +210,7 @@ class _AssistantMarkdown extends StatelessWidget {
       tableBody: theme.textTheme.bodySmall?.copyWith(height: 1.4),
       tableBorder: TableBorder.all(
         color: colors.outlineVariant.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       tableCellsPadding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
       horizontalRuleDecoration: BoxDecoration(
@@ -323,7 +323,7 @@ class SystemNoticeView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
@@ -420,7 +420,7 @@ class ToolCallBlockView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: visual.color.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
         children: [
@@ -570,7 +570,7 @@ class _ScanningImagePreview extends StatelessWidget {
     final image = _buildImage();
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
         height: _boxHeight,
         color: colors.surfaceContainerHighest,
@@ -625,7 +625,7 @@ class _GeneratingImagePlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
         height: 300,
         color: colors.surfaceContainerHighest,
@@ -708,7 +708,7 @@ class _SharedFileCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(9, 8, 8, 8),
       decoration: BoxDecoration(
         color: colors.surfaceContainerHighest.withValues(alpha: 0.52),
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.7)),
       ),
       child: Column(
@@ -717,7 +717,7 @@ class _SharedFileCard extends StatelessWidget {
             GestureDetector(
               onTap: () => _openFullScreen(context, source),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(7),
+                borderRadius: BorderRadius.circular(5),
                 child: Image.file(
                   source,
                   width: double.infinity,

@@ -70,29 +70,29 @@ abstract final class AppTheme {
         color: dark ? const Color(0xFF0A1830) : Colors.white,
         surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: dark ? const Color(0xFF0C1B33) : Colors.white,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
-          vertical: 12,
+          vertical: 10,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
           borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
           borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
           borderSide: BorderSide(color: scheme.primary, width: 1.6),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
           borderSide: BorderSide(color: scheme.error),
         ),
       ),
@@ -103,20 +103,20 @@ abstract final class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(0, 44),
+          minimumSize: const Size(0, 42),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
           ),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 44),
+          minimumSize: const Size(0, 42),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
           ),
           side: BorderSide(color: scheme.outlineVariant),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
@@ -125,7 +125,7 @@ abstract final class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(6),
           ),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
@@ -133,14 +133,14 @@ abstract final class AppTheme {
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(6),
           ),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: dark ? const Color(0xFF0C1B33) : Colors.white,
         side: BorderSide(color: scheme.outlineVariant),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         labelStyle: TextStyle(
           color: scheme.onSurface,
           fontWeight: FontWeight.w600,
@@ -151,7 +151,7 @@ abstract final class AppTheme {
         elevation: 0,
         backgroundColor: dark ? const Color(0xFF0A1830) : Colors.white,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: dark
@@ -159,7 +159,7 @@ abstract final class AppTheme {
             : const Color(0xFFF8FAFE),
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
         ),
       ),
       switchTheme: SwitchThemeData(
@@ -173,6 +173,10 @@ abstract final class AppTheme {
               ? scheme.primary
               : scheme.outline,
         ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(color: scheme.primary),
       pageTransitionsTheme: const PageTransitionsTheme(

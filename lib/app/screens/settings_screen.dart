@@ -409,7 +409,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: Theme.of(context).colorScheme.primary.withValues(
                         alpha: 0.08,
                       ),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -867,7 +867,7 @@ class _ModelPickerSheet extends StatelessWidget {
                       height: 32,
                       decoration: BoxDecoration(
                         color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Icon(
                         Icons.smart_toy_outlined,
@@ -884,7 +884,7 @@ class _ModelPickerSheet extends StatelessWidget {
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     onTap: () => Navigator.of(context).pop(model),
                   ),
@@ -915,7 +915,7 @@ class _ConnectionHero extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(
               configured ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
@@ -977,7 +977,7 @@ class _StatusMessage extends StatelessWidget {
       padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
@@ -1022,10 +1022,10 @@ class _SettingSwitch extends StatelessWidget {
     final theme = Theme.of(context);
     return Material(
       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(6),
       child: InkWell(
         onTap: () => onChanged(!value),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(10, 7, 5, 7),
           child: Row(

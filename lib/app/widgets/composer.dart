@@ -252,7 +252,7 @@ class _ComposerState extends State<Composer> {
                   color: theme.brightness == Brightness.dark
                       ? theme.colorScheme.surfaceContainerHigh
                       : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: _focus.hasFocus
                         ? theme.colorScheme.primary.withValues(alpha: 0.7)

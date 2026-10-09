@@ -11,7 +11,7 @@ class SiberLogo extends StatelessWidget {
       image: true,
       label: 'Logo SiberMobile',
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(size * 0.22),
+        borderRadius: BorderRadius.circular(size * 0.10),
         child: Image.asset(
           'assets/branding/sibermobile_icon.png',
           width: size,
@@ -48,7 +48,7 @@ class SurfaceCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: theme.cardTheme.color,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color:
               borderColor ??
@@ -65,7 +65,7 @@ class SurfaceCard extends StatelessWidget {
               color: Colors.transparent,
               child: InkWell(
                 onTap: onTap,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(6),
                 child: card,
               ),
             ),
@@ -98,7 +98,7 @@ class SectionHeading extends StatelessWidget {
           height: 36,
           decoration: BoxDecoration(
             color: theme.colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Icon(
             icon,
