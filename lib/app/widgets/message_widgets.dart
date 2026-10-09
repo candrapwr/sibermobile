@@ -440,11 +440,10 @@ class ToolCallBlockView extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  item.name,
+                  toolNarration(item.name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelMedium?.copyWith(
-                    fontFamily: 'monospace',
                     fontWeight: FontWeight.w700,
                   ),
                 ),

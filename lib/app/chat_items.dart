@@ -119,3 +119,46 @@ class SystemNotice extends ChatItem {
   final String text;
   final bool isError;
 }
+
+/// Short human narration shown in the UI instead of the raw tool name.
+/// Unknown tools fall back to the name with underscores as spaces.
+const Map<String, String> _toolNarrations = {
+  'get_current_time': 'Memeriksa waktu',
+  'ask_user': 'Menanyakan sesuatu',
+  'send_file_to_user': 'Menyiapkan file',
+  'web_search': 'Mencari di web',
+  'http_request': 'Mengirim permintaan HTTP',
+  'analyze_image': 'Menganalisa gambar',
+  'generate_image': 'Membuat gambar',
+  'get_device_info': 'Membaca info perangkat',
+  'get_storage_info': 'Mengecek penyimpanan',
+  'get_app_info': 'Membaca info aplikasi',
+  'battery_status': 'Mengecek baterai',
+  'get_current_location': 'Mencari lokasi',
+  'take_photo': 'Mengambil foto',
+  'pick_gallery_image': 'Memilih gambar dari galeri',
+  'play_audio': 'Memutar audio',
+  'stop_audio': 'Menghentikan audio',
+  'speak_text': 'Membacakan teks',
+  'stop_speaking': 'Menghentikan suara',
+  'speech_to_text': 'Mendengarkan suara',
+  'show_notification': 'Mengirim notifikasi',
+  'search_contacts': 'Mencari kontak',
+  'list_installed_apps': 'Mendaftar aplikasi terpasang',
+  'launch_app': 'Membuka aplikasi',
+  'nfc_status': 'Mengecek NFC',
+  'nfc_analyze': 'Memindai kartu NFC',
+  'nfc_transceive': 'Berkomunikasi dengan NFC',
+  'nfc_write_ndef': 'Menulis ke kartu NFC',
+  'wifi_scan': 'Memindai Wi-Fi',
+  'cell_scan': 'Memeriksa jaringan seluler',
+  'net_probe': 'Menguji koneksi',
+  'shell_exec': 'Menjalankan perintah',
+  'read_file': 'Membaca file',
+  'write_file': 'Menulis file',
+  'list_dir': 'Melihat isi folder',
+  'delete_file': 'Menghapus file',
+};
+
+String toolNarration(String name) =>
+    _toolNarrations[name] ?? name.replaceAll('_', ' ');

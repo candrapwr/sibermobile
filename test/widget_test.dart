@@ -238,7 +238,8 @@ void main() {
       ),
     );
 
-    expect(find.text('get_device_info'), findsOneWidget);
+    expect(find.text('Membaca info perangkat'), findsOneWidget);
+    expect(find.text('get_device_info'), findsNothing);
     expect(find.text('Berhasil'), findsOneWidget);
     expect(find.textContaining('large tool result'), findsNothing);
     expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsNothing);
