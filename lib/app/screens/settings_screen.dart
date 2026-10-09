@@ -354,6 +354,105 @@ class _SettingsScreenState extends State<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SectionHeading(
+                  icon: Icons.cloud_outlined,
+                  title: 'Provider AI',
+                  subtitle: 'OpenAI-compatible • konfigurasi tersimpan lokal',
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _baseUrl,
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Base URL',
+                    hintText: 'https://api.example.com/v1',
+                    prefixIcon: Icon(Icons.link_rounded),
+                    helperText: 'Tanpa /chat/completions di bagian akhir.',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _apiKey,
+                  obscureText: _obscureKey,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: InputDecoration(
+                    labelText: 'API key',
+                    prefixIcon: const Icon(Icons.key_rounded),
+                    helperText: _hasStoredKey
+                        ? 'Key aman tersimpan. Kosongkan untuk tidak mengubah.'
+                        : 'Dienkripsi melalui secure storage perangkat.',
+                    helperMaxLines: 2,
+                    suffixIcon: IconButton(
+                      tooltip: _obscureKey
+                          ? 'Tampilkan key'
+                          : 'Sembunyikan key',
+                      icon: Icon(
+                        _obscureKey
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscureKey = !_obscureKey),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _model,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Model',
+                    hintText: 'nama-model',
+                    prefixIcon: Icon(Icons.memory_rounded),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        onPressed: _fetchingModels ? null : _fetchModels,
+                        icon: _fetchingModels
+                            ? const _MiniLoader()
+                            : const Icon(Icons.cloud_download_outlined),
+                        label: const Text('Ambil model'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _testing ? null : _testConnection,
+                        icon: _testing
+                            ? const _MiniLoader()
+                            : const Icon(Icons.wifi_tethering_rounded),
+                        label: const Text('Tes koneksi'),
+                      ),
+                    ),
+                  ],
+                ),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  child: _status == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          key: ValueKey(_status),
+                          padding: const EdgeInsets.only(top: 10),
+                          child: _StatusMessage(
+                            message: _status!,
+                            isError: _statusIsError,
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          SurfaceCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SectionHeading(
                   icon: Icons.palette_outlined,
                   title: 'Tampilan',
                   subtitle:
@@ -518,104 +617,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SectionHeading(
-                  icon: Icons.cloud_outlined,
-                  title: 'Provider AI',
-                  subtitle: 'OpenAI-compatible • konfigurasi tersimpan lokal',
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: _baseUrl,
-                  keyboardType: TextInputType.url,
-                  autocorrect: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Base URL',
-                    hintText: 'https://api.example.com/v1',
-                    prefixIcon: Icon(Icons.link_rounded),
-                    helperText: 'Tanpa /chat/completions di bagian akhir.',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _apiKey,
-                  obscureText: _obscureKey,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: InputDecoration(
-                    labelText: 'API key',
-                    prefixIcon: const Icon(Icons.key_rounded),
-                    helperText: _hasStoredKey
-                        ? 'Key aman tersimpan. Kosongkan untuk tidak mengubah.'
-                        : 'Dienkripsi melalui secure storage perangkat.',
-                    helperMaxLines: 2,
-                    suffixIcon: IconButton(
-                      tooltip: _obscureKey
-                          ? 'Tampilkan key'
-                          : 'Sembunyikan key',
-                      icon: Icon(
-                        _obscureKey
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
-                      onPressed: () =>
-                          setState(() => _obscureKey = !_obscureKey),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _model,
-                  autocorrect: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Model',
-                    hintText: 'nama-model',
-                    prefixIcon: Icon(Icons.memory_rounded),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.tonalIcon(
-                        onPressed: _fetchingModels ? null : _fetchModels,
-                        icon: _fetchingModels
-                            ? const _MiniLoader()
-                            : const Icon(Icons.cloud_download_outlined),
-                        label: const Text('Ambil model'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _testing ? null : _testConnection,
-                        icon: _testing
-                            ? const _MiniLoader()
-                            : const Icon(Icons.wifi_tethering_rounded),
-                        label: const Text('Tes koneksi'),
-                      ),
-                    ),
-                  ],
-                ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  child: _status == null
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          key: ValueKey(_status),
-                          padding: const EdgeInsets.only(top: 10),
-                          child: _StatusMessage(
-                            message: _status!,
-                            isError: _statusIsError,
-                          ),
-                        ),
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: 10),
           SurfaceCard(
             child: Column(
