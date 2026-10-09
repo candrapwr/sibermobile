@@ -1,127 +1,62 @@
 /// SSH/SFTP tools: run commands and move files on the user's own servers.
 ///
-/// Credentials never reach the model: accounts live in the Akun SSH menu
-/// (passwords in secure storage), the user picks the account for the
-/// conversation via ask_user + ssh_select_account, and everything else goes
-/// through the host-side SshAccess implementation.
+/// Two user-facing tools, each with an `op` parameter: ssh_client
+/// (accounts / select / exec) and sftp_client (list / get / put). They map
+/// to one toggle each in the Tools screen and default to off. Credentials
+/// never reach the model: accounts live in the Akun SSH menu (passwords in
+/// secure storage), the user picks the account for the conversation via
+/// ask_user + op:select, and everything goes through the host-side
+/// SshAccess implementation.
 library;
 
 import '../tool.dart';
 import '../results.dart';
 
-/// Lists saved SSH accounts (metadata only) — step 1 of the pick flow.
-class SshListAccountsTool extends Tool {
+/// SSH operations in one tool: list accounts, select one, run commands.
+class SshClientTool extends Tool {
   @override
-  String get name => 'ssh_list_accounts';
+  String get name => 'ssh_client';
 
   @override
   String get category => 'SSH';
 
   @override
   String get description =>
-      'List the SSH accounts saved on this device (name, username, host, '
-      'port, and which one is selected for this conversation). Passwords '
-      'are never shown. Flow: if no account is selected, show the options '
-      'to the user with ask_user (choices = account names), then call '
-      'ssh_select_account with the chosen name. Once an account is '
-      'selected it stays active for the rest of this conversation.';
-
-  @override
-  Map<String, dynamic> get parameters => const {
-    'type': 'object',
-    'properties': <String, dynamic>{},
-    'additionalProperties': false,
-  };
-
-  @override
-  Future<String> execute(Map<String, dynamic> args, ToolContext ctx) async {
-    final ssh = ctx.ssh;
-    if (ssh == null) return errorResult('SSH is not available.');
-    final accounts = await ssh.listAccounts();
-    if (accounts.isEmpty) {
-      return errorResult(
-        'No SSH accounts are saved yet. Ask the user to add one via the '
-        'Akun SSH menu (three-dot menu → Akun SSH).',
-      );
-    }
-    return jsonResult({
-      'accounts': accounts,
-      if (!accounts.any((a) => a['selected'] == true))
-        'hint': 'No account selected yet: ask the user to pick one '
-            '(ask_user), then ssh_select_account.',
-    });
-  }
-}
-
-/// Marks the account the user picked for this conversation.
-class SshSelectAccountTool extends Tool {
-  @override
-  String get name => 'ssh_select_account';
-
-  @override
-  String get category => 'SSH';
-
-  @override
-  String get description =>
-      'Select the SSH account to use for this conversation. Call it with '
-      'the account name the USER picked via ask_user — do not pick an '
-      'account on your own. The selection lasts until the conversation '
-      'session changes.';
+      'SSH access to the user\'s own servers, in three operations. '
+      'op=accounts: list saved SSH accounts (name, username, host, port, '
+      'and which one is selected for this conversation — passwords are '
+      'never shown). op=select: mark the account the USER picked via '
+      'ask_user (do not pick on your own); the selection lasts for the '
+      'rest of this conversation session. op=exec: run a shell command on '
+      'the selected account and get stdout, stderr and the exit code — '
+      'output is capped and long-running commands are killed by the '
+      'timeout but keep running on the server.';
 
   @override
   Map<String, dynamic> get parameters => const {
     'type': 'object',
     'properties': <String, dynamic>{
-      'name': <String, dynamic>{
+      'op': <String, dynamic>{
         'type': 'string',
-        'description': 'The account name exactly as listed by '
-            'ssh_list_accounts.',
+        'enum': <String>['accounts', 'select', 'exec'],
+        'description': 'accounts = list saved accounts; select = pick the '
+            'account the user chose; exec = run a command.',
       },
-    },
-    'required': <String>['name'],
-    'additionalProperties': false,
-  };
-
-  @override
-  Future<String> execute(Map<String, dynamic> args, ToolContext ctx) async {
-    final ssh = ctx.ssh;
-    if (ssh == null) return errorResult('SSH is not available.');
-    final out = await ssh.selectAccount(requireString(args, 'name'));
-    return out['ok'] == true ? jsonResult(out) : errorResult(out['error']?.toString() ?? 'selection failed');
-  }
-}
-
-/// Runs one command over SSH on the selected account.
-class SshExecTool extends Tool {
-  @override
-  String get name => 'ssh_exec';
-
-  @override
-  String get category => 'SSH';
-
-  @override
-  String get description =>
-      'Run a shell command on the selected SSH server and return stdout, '
-      'stderr and the exit code. Requires an account selected for this '
-      'conversation (ssh_list_accounts → ask_user → ssh_select_account). '
-      'Output is capped; long-running commands are killed by the timeout '
-      'but keep running on the server.';
-
-  @override
-  Map<String, dynamic> get parameters => const {
-    'type': 'object',
-    'properties': <String, dynamic>{
       'command': <String, dynamic>{
         'type': 'string',
-        'description': 'The command line to run, e.g. "df -h" or '
-            '"systemctl status nginx".',
+        'description': 'For op=exec: the command line to run, e.g. "df -h".',
+      },
+      'name': <String, dynamic>{
+        'type': 'string',
+        'description': 'For op=select: the account name exactly as listed '
+            'by op=accounts.',
       },
       'timeoutSeconds': <String, dynamic>{
         'type': 'integer',
-        'description': 'Default 30, max 300.',
+        'description': 'For op=exec: default 30, max 300.',
       },
     },
-    'required': <String>['command'],
+    'required': <String>['op'],
     'additionalProperties': false,
   };
 
@@ -129,113 +64,87 @@ class SshExecTool extends Tool {
   Future<String> execute(Map<String, dynamic> args, ToolContext ctx) async {
     final ssh = ctx.ssh;
     if (ssh == null) return errorResult('SSH is not available.');
-    final timeout = optionalInt(args, 'timeoutSeconds', 30).clamp(5, 300);
-    final out = await ssh.exec(requireString(args, 'command'), timeout);
-    return out['ok'] == true ? jsonResult(out) : errorResult(out['error']?.toString() ?? 'exec failed');
+    final op = requireString(args, 'op');
+
+    switch (op) {
+      case 'accounts':
+        final accounts = await ssh.listAccounts();
+        if (accounts.isEmpty) {
+          return errorResult(
+            'No SSH accounts are saved yet. Ask the user to add one via the '
+            'Akun SSH menu (three-dot menu → Akun SSH).',
+          );
+        }
+        return jsonResult({
+          'accounts': accounts,
+          if (!accounts.any((a) => a['selected'] == true))
+            'hint': 'No account selected yet: ask the user to pick one '
+                '(ask_user), then op=select.',
+        });
+      case 'select':
+        final out = await ssh.selectAccount(requireString(args, 'name'));
+        return out['ok'] == true
+            ? jsonResult(out)
+            : errorResult(out['error']?.toString() ?? 'selection failed');
+      case 'exec':
+        final out = await ssh.exec(
+          requireString(args, 'command'),
+          optionalInt(args, 'timeoutSeconds', 30).clamp(5, 300),
+        );
+        return out['ok'] == true
+            ? jsonResult(out)
+            : errorResult(out['error']?.toString() ?? 'exec failed');
+      default:
+        return errorResult('op must be accounts, select or exec.');
+    }
   }
 }
 
-/// Lists a remote directory over SFTP.
-class SftpListTool extends Tool {
+/// SFTP operations in one tool: list directories, download, upload.
+class SftpClientTool extends Tool {
   @override
-  String get name => 'sftp_list';
+  String get name => 'sftp_client';
 
   @override
   String get category => 'SSH';
 
   @override
   String get description =>
-      'List a directory on the selected SSH server via SFTP: file names, '
-      'directory flags and sizes (up to 500 entries). Requires a selected '
-      'account.';
+      'File transfer over SFTP on the selected SSH account (pick one first '
+      'via ssh_client op=accounts + ask_user + op=select). op=list: list a '
+      'remote directory (names, directory flags, sizes, up to 500 entries). '
+      'op=get: download a remote file into the session workspace '
+      '(ssh/<filename>) — then offer it to the user with send_file_to_user '
+      'using the returned path. op=put: upload a file from the session '
+      'sandbox (attachments, generated images, files you wrote) to the '
+      'server.';
 
   @override
   Map<String, dynamic> get parameters => const {
     'type': 'object',
     'properties': <String, dynamic>{
+      'op': <String, dynamic>{
+        'type': 'string',
+        'enum': <String>['list', 'get', 'put'],
+        'description': 'list = directory listing; get = download to the '
+            'session sandbox; put = upload from the sandbox.',
+      },
       'path': <String, dynamic>{
         'type': 'string',
-        'description': 'Remote directory, e.g. "/var/log" (default "/").',
+        'description': 'For op=list: remote directory (default "/").',
       },
-    },
-    'additionalProperties': false,
-  };
-
-  @override
-  Future<String> execute(Map<String, dynamic> args, ToolContext ctx) async {
-    final ssh = ctx.ssh;
-    if (ssh == null) return errorResult('SSH is not available.');
-    final out = await ssh.sftpList(optionalString(args, 'path') ?? '/');
-    return out['ok'] == true ? jsonResult(out) : errorResult(out['error']?.toString() ?? 'listing failed');
-  }
-}
-
-/// Downloads a remote file into the session workdir.
-class SftpGetTool extends Tool {
-  @override
-  String get name => 'sftp_get';
-
-  @override
-  String get category => 'SSH';
-
-  @override
-  String get description =>
-      'Download a file from the selected SSH server into the session '
-      'workspace (ssh/<filename>), then offer it to the user with '
-      'send_file_to_user using the returned path. Requires a selected '
-      'account.';
-
-  @override
-  Map<String, dynamic> get parameters => const {
-    'type': 'object',
-    'properties': <String, dynamic>{
       'remotePath': <String, dynamic>{
         'type': 'string',
-        'description': 'Absolute path on the server, e.g. "/etc/nginx/nginx.conf".',
+        'description': 'Remote path: the file to download (op=get) or the '
+            'upload destination (op=put).',
       },
-    },
-    'required': <String>['remotePath'],
-    'additionalProperties': false,
-  };
-
-  @override
-  Future<String> execute(Map<String, dynamic> args, ToolContext ctx) async {
-    final ssh = ctx.ssh;
-    if (ssh == null) return errorResult('SSH is not available.');
-    final out = await ssh.sftpDownload(requireString(args, 'remotePath'));
-    return out['ok'] == true ? jsonResult(out) : errorResult(out['error']?.toString() ?? 'download failed');
-  }
-}
-
-/// Uploads a workdir file to the server.
-class SftpPutTool extends Tool {
-  @override
-  String get name => 'sftp_put';
-
-  @override
-  String get category => 'SSH';
-
-  @override
-  String get description =>
-      'Upload a file from the session workspace to the selected SSH server. '
-      'The local path is inside the session sandbox (e.g. something the '
-      'user attached, "uploads/report.pdf", or a file you created with '
-      'write_file / generate_image). Requires a selected account.';
-
-  @override
-  Map<String, dynamic> get parameters => const {
-    'type': 'object',
-    'properties': <String, dynamic>{
       'localPath': <String, dynamic>{
         'type': 'string',
-        'description': 'File inside the session sandbox, e.g. "uploads/report.pdf".',
-      },
-      'remotePath': <String, dynamic>{
-        'type': 'string',
-        'description': 'Absolute destination path on the server.',
+        'description': 'For op=put: file inside the session sandbox, e.g. '
+            '"uploads/report.pdf".',
       },
     },
-    'required': <String>['localPath', 'remotePath'],
+    'required': <String>['op'],
     'additionalProperties': false,
   };
 
@@ -243,19 +152,31 @@ class SftpPutTool extends Tool {
   Future<String> execute(Map<String, dynamic> args, ToolContext ctx) async {
     final ssh = ctx.ssh;
     if (ssh == null) return errorResult('SSH is not available.');
-    final out = await ssh.sftpUpload(
-      requireString(args, 'localPath'),
-      requireString(args, 'remotePath'),
-    );
-    return out['ok'] == true ? jsonResult(out) : errorResult(out['error']?.toString() ?? 'upload failed');
+    final op = requireString(args, 'op');
+
+    switch (op) {
+      case 'list':
+        final out = await ssh.sftpList(optionalString(args, 'path') ?? '/');
+        return out['ok'] == true
+            ? jsonResult(out)
+            : errorResult(out['error']?.toString() ?? 'listing failed');
+      case 'get':
+        final out = await ssh.sftpDownload(requireString(args, 'remotePath'));
+        return out['ok'] == true
+            ? jsonResult(out)
+            : errorResult(out['error']?.toString() ?? 'download failed');
+      case 'put':
+        final out = await ssh.sftpUpload(
+          requireString(args, 'localPath'),
+          requireString(args, 'remotePath'),
+        );
+        return out['ok'] == true
+            ? jsonResult(out)
+            : errorResult(out['error']?.toString() ?? 'upload failed');
+      default:
+        return errorResult('op must be list, get or put.');
+    }
   }
 }
 
-final List<Tool> sshTools = <Tool>[
-  SshListAccountsTool(),
-  SshSelectAccountTool(),
-  SshExecTool(),
-  SftpListTool(),
-  SftpGetTool(),
-  SftpPutTool(),
-];
+final List<Tool> sshTools = <Tool>[SshClientTool(), SftpClientTool()];

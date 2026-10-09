@@ -114,7 +114,7 @@ memang Anda kontrol.
 - **Tool inti selalu aktif** — `get_current_time` membaca jam perangkat,
   `ask_user` membuka pertanyaan/opsi dari AI, dan `send_file_to_user` membuat
   file hasil kerja siap disimpan ke HP; semuanya tidak bisa dinonaktifkan.
-- **38 tool opsional** untuk perangkat dan web: info perangkat, baterai,
+- **34 tool opsional** untuk perangkat dan web: info perangkat, baterai,
   jaringan, GPS, kamera/media, TTS/STT, notifikasi, kontak, aplikasi,
   NFC, file sandbox, dan pencarian web. Asisten tetap berguna
   penuh tanpa memakai tool opsional apa pun.
@@ -161,7 +161,8 @@ memang Anda kontrol.
   sesi percakapan — lalu `ssh_exec` menjalankan perintah, `sftp_list`/
   `sftp_get`/`sftp_put` memindahkan file dua arah (unduhan masuk sandbox
   sesi dan bisa langsung ditawarkan ke user). Murni Dart (dartssh2), tanpa
-  kode native; tool-nya nonaktif secara default.
+  kode native; dua tool-nya (`ssh_client`, `sftp_client`) nonaktif
+  secara default.
 - **Intelijen jaringan bebas** — `wifi_scan` (semua AP terlihat + flag BSSID
   acak untuk deteksi rogue AP/evil twin), `cell_scan` (operator SIM vs
   jaringan terdaftar, identitas + sinyal semua sel — bahan analisa deteksi
@@ -429,7 +430,7 @@ tetap digunakan untuk menyimpan konfigurasi provider dan agent.
 
 ## Daftar tool
 
-3 tool inti dan 38 tool opsional dalam 16 kategori. Tool inti tidak bisa
+3 tool inti dan 34 tool opsional dalam 16 kategori. Tool inti tidak bisa
 dinonaktifkan. Sebagian besar tool perangkat (Device, Battery, Camera, Speech,
 Apps, NFC, analisa jaringan, shell, SSH) **nonaktif secara default** dan baru masuk schema
 model setelah diaktifkan di layar *Tool perangkat*. Kolom 🔒 = `requiresApproval`
@@ -498,12 +499,8 @@ permission runtime yang diminta otomatis saat tool dipanggil.
 ### SSH
 | Tool | Fungsi | Izin |
 |---|---|---|
-| `ssh_list_accounts` | Daftar akun SSH tersimpan (tanpa kredensial) + status pilihan sesi | – |
-| `ssh_select_account` | Memilih akun hasil keputusan user (via ask_user) untuk sesi percakapan | – |
-| `ssh_exec` | Jalankan perintah di server terpilih (stdout/stderr/exit code, timeout) | – |
-| `sftp_list` | List direktori remote | – |
-| `sftp_get` | Unduh file remote ke sandbox sesi → tawarkan via `send_file_to_user` | – |
-| `sftp_put` | Unggah file sandbox sesi ke server | – |
+| `ssh_client` | Satu tool tiga operasi: `accounts` (daftar akun tanpa kredensial), `select` (pilihan user via ask_user), `exec` (jalankan perintah; stdout/stderr/exit code, timeout) | – |
+| `sftp_client` | Satu tool tiga operasi: `list` (direktori remote), `get` (unduh ke sandbox sesi → tawarkan via `send_file_to_user`), `put` (unggah file sandbox ke server) | – |
 
 ### System
 | Tool | Fungsi | Izin |

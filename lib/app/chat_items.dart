@@ -154,6 +154,8 @@ const Map<String, String> _toolNarrations = {
   'cell_scan': 'Memeriksa jaringan seluler',
   'net_probe': 'Menguji koneksi',
   'shell_exec': 'Menjalankan perintah',
+  'ssh_client': 'Terhubung ke server SSH',
+  'sftp_client': 'Memindahkan file via SFTP',
   'read_file': 'Membaca file',
   'write_file': 'Menulis file',
   'list_dir': 'Melihat isi folder',

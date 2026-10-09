@@ -122,12 +122,8 @@ const Set<String> defaultDisabledTools = {
   // Shell (power tool).
   'shell_exec',
   // SSH/SFTP (needs a user-picked account anyway).
-  'ssh_list_accounts',
-  'ssh_select_account',
-  'ssh_exec',
-  'sftp_list',
-  'sftp_get',
-  'sftp_put',
+  'ssh_client',
+  'sftp_client',
 };
 
 class AppSettings {
