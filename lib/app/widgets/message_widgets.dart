@@ -544,13 +544,26 @@ class _ScanningImagePreviewState extends State<_ScanningImagePreview>
   @override
   bool get wantKeepAlive => true;
 
-  @override
-  void initState() {
-    super.initState();
+  void _ensureSweep() {
+    if (_sweep != null) return;
     _sweep = Timer.periodic(const Duration(milliseconds: 16), (_) {
       if (!mounted) return;
       setState(() => _t = (_t + 16 / _sweepMs) % 1.0);
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _ensureSweep();
+  }
+
+  // Also started from build: a hot reload keeps the old State alive without
+  // re-running initState, which would otherwise leave the sweep frozen.
+  @override
+  void didUpdateWidget(covariant _ScanningImagePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _ensureSweep();
   }
 
   @override
@@ -600,6 +613,7 @@ class _ScanningImagePreviewState extends State<_ScanningImagePreview>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    _ensureSweep();
     final colors = Theme.of(context).colorScheme;
     final image = _buildImage();
 
@@ -741,11 +755,10 @@ class _GeneratingImagePlaceholder extends StatefulWidget {
 class _GeneratingImagePlaceholderState
     extends State<_GeneratingImagePlaceholder>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _shimmer;
+  AnimationController? _shimmer;
 
-  @override
-  void initState() {
-    super.initState();
+  void _ensureShimmer() {
+    if (_shimmer != null) return;
     _shimmer = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -753,25 +766,33 @@ class _GeneratingImagePlaceholderState
   }
 
   @override
+  void initState() {
+    super.initState();
+    _ensureShimmer();
+  }
+
+  @override
   void dispose() {
-    _shimmer.dispose();
+    _shimmer?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    _ensureShimmer();
     final colors = Theme.of(context).colorScheme;
     final base = colors.surfaceContainerHighest;
     final highlight = colors.primary.withValues(alpha: 0.22);
+    final shimmer = _shimmer!;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: AspectRatio(
         aspectRatio: 16 / 9,
         child: AnimatedBuilder(
-          animation: _shimmer,
+          animation: shimmer,
           builder: (context, _) {
-            final t = _shimmer.value;
+            final t = shimmer.value;
             return DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
