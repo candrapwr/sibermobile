@@ -616,7 +616,7 @@ class _ScanningImagePreview extends StatelessWidget {
   }
 }
 
-/// Live placeholder while `generate_image` runs: the scanner Lottie plus a
+/// Live placeholder while `generate_image` runs: the generate Lottie plus a
 /// caption. Replaced by the normal finished tool card (with its inline image
 /// preview) once the tool completes.
 class _GeneratingImagePlaceholder extends StatelessWidget {
@@ -634,7 +634,7 @@ class _GeneratingImagePlaceholder extends StatelessWidget {
           children: [
             Expanded(
               child: Lottie.asset(
-                'assets/lottie/scanner.json',
+                'assets/lottie/generate.json',
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) =>
                     const SizedBox.shrink(),
