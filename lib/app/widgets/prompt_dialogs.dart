@@ -80,97 +80,171 @@ class _AskUserDialogState extends State<_AskUserDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final request = widget.request;
-    return AlertDialog(
-      icon: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(11),
-        ),
-        child: Icon(
-          Icons.question_answer_rounded,
-          color: theme.colorScheme.onPrimaryContainer,
-        ),
-      ),
-      title: const Text('AI membutuhkan jawaban'),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 440),
-        child: SingleChildScrollView(
+    return Dialog(
+      backgroundColor: colors.surfaceContainerLow,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  request.question,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+              Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: colors.primary.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Icon(
+                      Icons.question_answer_rounded,
+                      size: 15,
+                      color: colors.primary,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'AI membutuhkan jawaban',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Batal',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _cancel,
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: 19,
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 3,
+                    constraints: const BoxConstraints(minHeight: 36),
+                    decoration: BoxDecoration(
+                      color: colors.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      request.question,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               if (_hasChoices) ...[
-                const SizedBox(height: 10),
-                Text(
-                  'PILIH JAWABAN',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 14),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
                     for (final choice in request.choices)
-                      ActionChip(
-                        avatar: const Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 16,
-                        ),
-                        label: Text(choice),
+                      FilledButton.tonal(
                         onPressed: () => _submit(choice),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: colors.surfaceContainerHigh,
+                          foregroundColor: colors.onSurface,
+                          textStyle: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 11,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Text(choice),
                       ),
                   ],
                 ),
               ],
               if (_canSubmitText) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _controller,
                   autofocus: true,
                   minLines: 1,
                   maxLines: 4,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Jawaban',
-                    hintText: 'Ketik jawaban…',
-                    prefixIcon: Icon(Icons.edit_outlined),
+                  style: theme.textTheme.bodyLarge,
+                  decoration: InputDecoration(
+                    hintText: _hasChoices
+                        ? 'Atau ketik jawaban lain…'
+                        : 'Ketik jawaban…',
+                    isDense: true,
+                    filled: true,
+                    fillColor: colors.surfaceContainerHighest,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 13,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                   onSubmitted: (_) => _submit(),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: _cancel,
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: const Text('Batal'),
+                    ),
+                    const SizedBox(width: 6),
+                    FilledButton.icon(
+                      onPressed: () => _submit(),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 11,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.send_rounded, size: 17),
+                      label: const Text('Kirim'),
+                    ),
+                  ],
                 ),
               ],
             ],
           ),
         ),
       ),
-      actions: [
-        TextButton(onPressed: _cancel, child: const Text('Batal')),
-        if (_canSubmitText)
-          FilledButton.icon(
-            onPressed: () => _submit(),
-            icon: const Icon(Icons.send_rounded, size: 18),
-            label: const Text('Kirim'),
-          ),
-      ],
     );
   }
 }
