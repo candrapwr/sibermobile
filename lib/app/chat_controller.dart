@@ -322,6 +322,14 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Wipes every stored session (and their work directories) and starts a
+  /// fresh chat.
+  Future<void> deleteAllSessions() async {
+    await _sessionStore.deleteAll();
+    await newSession();
+    notifyListeners();
+  }
+
   // ── agent lifecycle ─────────────────────────────────────────────────────
 
   void _rebuildAgent() {

@@ -220,6 +220,32 @@ class SessionStore {
     if (await file.exists()) await file.delete();
   }
 
+  /// Deletes every stored session plus its working directory (attachments
+  /// and tool outputs). Best effort per entry: one unreadable entry never
+  /// blocks the rest of the wipe.
+  Future<void> deleteAll() async {
+    final dir = await sessionsDir;
+    final base = _root ?? await getApplicationDocumentsDirectory();
+    final workRoot = Directory(
+      '${base.path}${Platform.pathSeparator}work',
+    );
+    final entries = <FileSystemEntity>[...await dir.list().toList()];
+    if (await workRoot.exists()) {
+      entries.addAll(await workRoot.list().toList());
+    }
+    for (final entity in entries) {
+      try {
+        if (entity is File) {
+          await entity.delete();
+        } else if (entity is Directory) {
+          await entity.delete(recursive: true);
+        }
+      } catch (_) {
+        // Skip locked/corrupt entries; the wipe continues.
+      }
+    }
+  }
+
   /// Creates a fresh (unsaved) session with a generated id. It is written to
   /// disk lazily — on the first message — so an empty "New chat" leaves no file.
   Session createSession({String model = '', String? name}) {

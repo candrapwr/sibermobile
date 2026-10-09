@@ -26,6 +26,53 @@ class _SessionsScreenState extends State<SessionsScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _confirmDeleteAll(BuildContext context) async {
+    final controller = context.read<ChatController>();
+    final sessions = await controller.listSessions();
+    if (!context.mounted) return;
+    if (sessions.isEmpty) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Belum ada riwayat untuk dihapus.')),
+        );
+      return;
+    }
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(
+          Icons.delete_sweep_rounded,
+          color: Theme.of(dialogContext).colorScheme.error,
+        ),
+        title: const Text('Hapus semua riwayat?'),
+        content: Text(
+          'Seluruh ${sessions.length} percakapan beserta lampiran dan file '
+          'hasil kerjanya akan dihapus permanen dari perangkat. Tindakan ini '
+          'tidak dapat dibatalkan.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Hapus semua'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true) return;
+    await controller.deleteAllSessions();
+    _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,6 +83,12 @@ class _SessionsScreenState extends State<SessionsScreen> {
             tooltip: 'Muat ulang',
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _reload,
+          ),
+          const SizedBox(width: 2),
+          IconButton(
+            tooltip: 'Hapus semua riwayat',
+            icon: const Icon(Icons.delete_sweep_rounded),
+            onPressed: () => _confirmDeleteAll(context),
           ),
           const SizedBox(width: 2),
         ],
