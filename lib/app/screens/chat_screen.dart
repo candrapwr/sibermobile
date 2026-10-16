@@ -231,7 +231,14 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: _ChatMenu.tools,
                 child: _MenuRow(
                   icon: Icons.grid_view_rounded,
-                  label: 'Tool perangkat',
+                  label: 'AI Tools',
+                ),
+              ),
+              PopupMenuItem(
+                value: _ChatMenu.personalTools,
+                child: _MenuRow(
+                  icon: Icons.touch_app_rounded,
+                  label: 'Personal Tools',
                 ),
               ),
               PopupMenuItem(
