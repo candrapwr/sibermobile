@@ -29,10 +29,31 @@ class AutoClickerOverlay : android.app.Service() {
 
     private lateinit var windowManager: WindowManager
     private var crosshair: View? = null
+    private var crosshairParams: WindowManager.LayoutParams? = null
     private var bubble: View? = null
     private var intervalMs = AutoClickerService.DEFAULT_INTERVAL_MS
     private var intervalLabel: TextView? = null
     private var playButton: ImageView? = null
+
+    /**
+     * Makes the crosshair transparent to touches while clicking, so the
+     * injected taps reach the app UNDER it instead of hitting the crosshair
+     * overlay itself (which sits on the topmost window layer).
+     */
+    private fun setCrosshairPassThrough(passThrough: Boolean) {
+        val ch = crosshair ?: return
+        val params = crosshairParams ?: return
+        if (passThrough) {
+            params.flags = params.flags or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        } else {
+            params.flags = params.flags and
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+        }
+        try {
+            windowManager.updateViewLayout(ch, params)
+        } catch (_: Exception) {}
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -55,6 +76,7 @@ class AutoClickerOverlay : android.app.Service() {
 
     override fun onDestroy() {
         AutoClickerService.instance?.stop()
+        setCrosshairPassThrough(false)
         crosshair?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
         bubble?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
         super.onDestroy()
@@ -124,6 +146,7 @@ class AutoClickerOverlay : android.app.Service() {
         }
         windowManager.addView(view, params)
         crosshair = view
+        crosshairParams = params
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -173,9 +196,14 @@ class AutoClickerOverlay : android.app.Service() {
             val engine = AutoClickerService.instance ?: return@setOnClickListener
             if (engine.isRunning) {
                 engine.stop()
+                // Restore draggability on the crosshair.
+                setCrosshairPassThrough(false)
                 playPause.setImageResource(android.R.drawable.ic_media_play)
             } else {
                 syncEngine()
+                // Make the crosshair transparent to touches so the injected
+                // taps reach the app underneath, not the crosshair overlay.
+                setCrosshairPassThrough(true)
                 // Small delay so the play-button tap itself doesn't get
                 // counted as the first auto-tap.
                 playPause.postDelayed({ engine.start() }, 350)
