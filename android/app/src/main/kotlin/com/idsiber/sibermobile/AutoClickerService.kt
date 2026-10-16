@@ -70,6 +70,10 @@ class AutoClickerService : AccessibilityService() {
     fun start() {
         if (running) return
         running = true
+        android.util.Log.d(
+            TAG,
+            "engine start interval=${intervalMs}ms target=($targetX,$targetY)",
+        )
         // Dedicated thread: the timing loop never blocks the main thread,
         // so overlay buttons remain easy to tap at any interval.
         if (clickThread == null) {
@@ -80,6 +84,7 @@ class AutoClickerService : AccessibilityService() {
     }
 
     fun stop() {
+        android.util.Log.d(TAG, "engine stop (was running=$running)")
         running = false
         clickHandler?.removeCallbacks(clickRunnable)
         mainHandler.removeCallbacksAndMessages(null)
@@ -104,6 +109,7 @@ class AutoClickerService : AccessibilityService() {
     }
 
     companion object {
+        private const val TAG = "AutoClicker"
         var instance: AutoClickerService? = null
             private set
 

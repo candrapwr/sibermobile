@@ -237,7 +237,7 @@ class _ChatScreenState extends State<ChatScreen> {
               PopupMenuItem(
                 value: _ChatMenu.personalTools,
                 child: _MenuRow(
-                  icon: Icons.touch_app_rounded,
+                  icon: Icons.home_repair_service_rounded,
                   label: 'Personal Tools',
                 ),
               ),

@@ -18,6 +18,7 @@ import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.util.Log
 
 /**
  * Floating auto-clicker UI: a draggable crosshair marking the tap position
@@ -28,6 +29,14 @@ import android.widget.TextView
 class AutoClickerOverlay : android.app.Service() {
 
     private lateinit var windowManager: WindowManager
+
+    /**
+     * WindowManager that owns the overlay views. Normally the service's own,
+     * but TYPE_ACCESSIBILITY_OVERLAY windows must be added through the
+     * accessibility service's manager (see [addViews]).
+     */
+    private var viewManager: WindowManager? = null
+    private var windowType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
     private var crosshair: View? = null
     private var crosshairParams: WindowManager.LayoutParams? = null
     private var bubble: View? = null
@@ -51,18 +60,19 @@ class AutoClickerOverlay : android.app.Service() {
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
         }
         try {
-            windowManager.updateViewLayout(ch, params)
+            wm().updateViewLayout(ch, params)
         } catch (_: Exception) {}
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private fun wm(): WindowManager = viewManager ?: windowManager
+
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         startAsForeground()
-        addCrosshair()
-        addBubble()
+        addViews()
         syncEngine()
     }
 
@@ -77,8 +87,10 @@ class AutoClickerOverlay : android.app.Service() {
     override fun onDestroy() {
         AutoClickerService.instance?.stop()
         setCrosshairPassThrough(false)
-        crosshair?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
-        bubble?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
+        val wm = wm()
+        crosshair?.let { try { wm.removeView(it) } catch (_: Exception) {} }
+        bubble?.let { try { wm.removeView(it) } catch (_: Exception) {} }
+        viewManager = null
         super.onDestroy()
     }
 
@@ -131,8 +143,47 @@ class AutoClickerOverlay : android.app.Service() {
         )
     }
 
+    /**
+     * TYPE_ACCESSIBILITY_OVERLAY (2032) windows must be added through the
+     * accessibility service's OWN WindowManager — only it holds the window
+     * token the system registered for the accessibility connection. Adding
+     * that type through any other service's WindowManager throws
+     * BadTokenException("token null is not valid"), even in the same
+     * process/UID. The accessibility input path keeps the overlay's buttons
+     * responsive while dispatchGesture floods the regular input pipeline.
+     */
+    private fun addViews() {
+        val a11y = AutoClickerService.instance
+        if (a11y != null) {
+            val a11yWm =
+                a11y.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            windowType = 2032
+            try {
+                addCrosshair(a11yWm)
+                addBubble(a11yWm)
+                viewManager = a11yWm
+                Log.d(TAG, "overlay windows on accessibility path (type 2032)")
+                return
+            } catch (e: Exception) {
+                // Token not usable (service still connecting); clean up any
+                // partially-added view and fall back to a normal overlay.
+                Log.w(TAG, "type 2032 rejected, falling back to 2038", e)
+                crosshair?.let { try { a11yWm.removeView(it) } catch (_: Exception) {} }
+                bubble?.let { try { a11yWm.removeView(it) } catch (_: Exception) {} }
+                crosshair = null
+                crosshairParams = null
+                bubble = null
+            }
+        }
+        windowType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        addCrosshair(windowManager)
+        addBubble(windowManager)
+        viewManager = windowManager
+        Log.d(TAG, "overlay windows on app-overlay path (type 2038)")
+    }
+
     @SuppressLint("ClickableViewAccessibility")
-    private fun addCrosshair() {
+    private fun addCrosshair(wm: WindowManager) {
         val dp = resources.displayMetrics.density
         val size = (44 * dp).toInt()
 
@@ -144,7 +195,7 @@ class AutoClickerOverlay : android.app.Service() {
         val params = WindowManager.LayoutParams(
             size,
             size,
-            TYPE_ACCESSIBILITY_OVERLAY_SAFE,
+            windowType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT,
         ).apply {
@@ -153,16 +204,16 @@ class AutoClickerOverlay : android.app.Service() {
             y = windowManager.defaultDisplay.height / 2 - size / 2
         }
 
-        attachDrag(view, params) { _, _ ->
+        attachDrag(view, view, params) { _, _ ->
             syncEngine()
         }
-        windowManager.addView(view, params)
+        wm.addView(view, params)
         crosshair = view
         crosshairParams = params
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun addBubble() {
+    private fun addBubble(wm: WindowManager) {
         val dp = resources.displayMetrics.density
         fun pad(v: Int) = (v * dp).toInt()
 
@@ -185,8 +236,9 @@ class AutoClickerOverlay : android.app.Service() {
         }
         intervalLabel = label
 
-        // When tapped, make the overlay focusable so the keyboard appears;
-        // on Enter/done, apply the value and unfocus.
+        // When tapped, make the overlay focusable so the keyboard appears.
+        // When focus leaves, commit the typed value so it also applies
+        // without the user pressing Enter/done.
         label.setOnFocusChangeListener { v, hasFocus ->
             val bubbleView = bubble
             if (bubbleView != null) {
@@ -197,26 +249,37 @@ class AutoClickerOverlay : android.app.Service() {
                     } else {
                         lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     }
-                    try { windowManager.updateViewLayout(bubbleView, lp) } catch (_: Exception) {}
+                    try { wm().updateViewLayout(bubbleView, lp) } catch (_: Exception) {}
                 }
+            }
+            if (!hasFocus) {
+                applyIntervalFromField()
+                // A mid-run edit takes effect immediately while clicking.
+                if (AutoClickerService.instance?.isRunning == true) syncEngine()
             }
         }
         label.setOnEditorActionListener { v, actionId, _ ->
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
-                val ms = v.text.toString().toIntOrNull() ?: intervalMs
-                intervalMs = ms.coerceIn(1, AutoClickerService.MAX_INTERVAL_MS)
-                v.setText(intervalMs.toString())
+                applyIntervalFromField()
                 v.clearFocus()
                 syncEngine()
                 true
             } else false
         }
 
+        // ACTION_DOWN instead of click — same flood-resilience reason as
+        // the play/pause button.
         fun miniButton(icon: Int, onTap: () -> Unit): ImageView =
             ImageView(this).apply {
                 setImageResource(icon)
                 setColorFilter(Color.WHITE)
-                setOnClickListener { onTap() }
+                setOnTouchListener { v, event ->
+                    if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                        v.performClick()
+                        onTap()
+                    }
+                    true
+                }
             }
 
         val close = miniButton(android.R.drawable.ic_delete) {
@@ -224,23 +287,52 @@ class AutoClickerOverlay : android.app.Service() {
             stopSelf()
         }
 
-        playPause.setOnClickListener {
-            val engine = AutoClickerService.instance ?: return@setOnClickListener
-            if (engine.isRunning) {
-                engine.stop()
-                // Restore draggability on the crosshair.
-                setCrosshairPassThrough(false)
-                playPause.setImageResource(android.R.drawable.ic_media_play)
-            } else {
-                syncEngine()
-                // Make the crosshair transparent to touches so the injected
-                // taps reach the app underneath, not the crosshair overlay.
-                setCrosshairPassThrough(true)
-                // Small delay so the play-button tap itself doesn't get
-                // counted as the first auto-tap.
-                playPause.postDelayed({ engine.start() }, 350)
-                playPause.setImageResource(android.R.drawable.ic_media_pause)
+        // Dedicated drag handle: every other part of the panel is covered by
+        // an interactive control (play, interval field, close), so this strip
+        // under the close button is the panel's drag area.
+        val dragHandle = TextView(this).apply {
+            text = "⠿"
+            setTextColor(Color.parseColor("#88FFFFFF"))
+            gravity = Gravity.CENTER
+            textSize = 16f
+        }
+
+        // Act on ACTION_DOWN, never on a full click. While taps are injected
+        // at 1-100ms intervals the input stream is flooded and the click
+        // contract (DOWN + UP on the same view with no cancel in between)
+        // frequently breaks — the UP never arrives or the press is cancelled.
+        // Acting on the single DOWN event makes the button respond instantly
+        // and reliably at any interval.
+        playPause.setOnTouchListener { v, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                v.performClick()
+                // The user may have typed a new interval and pressed play
+                // without hitting Enter — read the field now so the clicker
+                // starts with what is on screen, not the last committed value.
+                applyIntervalFromField()
+                intervalLabel?.clearFocus()
+                val engine = AutoClickerService.instance
+                if (engine != null) {
+                    if (engine.isRunning) {
+                        Log.d(TAG, "pause via bubble ACTION_DOWN")
+                        engine.stop()
+                        // Restore draggability on the crosshair.
+                        setCrosshairPassThrough(false)
+                        playPause.setImageResource(android.R.drawable.ic_media_play)
+                    } else {
+                        Log.d(TAG, "start via bubble ACTION_DOWN intervalMs=$intervalMs")
+                        syncEngine()
+                        // Make the crosshair transparent to touches so the
+                        // injected taps reach the app underneath.
+                        setCrosshairPassThrough(true)
+                        // Small delay so the play-button tap itself doesn't
+                        // get counted as the first auto-tap.
+                        playPause.postDelayed({ engine.start() }, 350)
+                        playPause.setImageResource(android.R.drawable.ic_media_pause)
+                    }
+                }
             }
+            true
         }
 
         val column = LinearLayout(this).apply {
@@ -249,7 +341,7 @@ class AutoClickerOverlay : android.app.Service() {
             setPadding(pad(3), pad(3), pad(3), pad(3))
             addView(
                 playPause,
-                LinearLayout.LayoutParams(pad(34), pad(34)).apply { gravity = Gravity.CENTER_HORIZONTAL },
+                LinearLayout.LayoutParams(pad(40), pad(40)).apply { gravity = Gravity.CENTER_HORIZONTAL },
             )
             addView(
                 label,
@@ -259,12 +351,16 @@ class AutoClickerOverlay : android.app.Service() {
                 close,
                 LinearLayout.LayoutParams(pad(40), pad(40)).apply { gravity = Gravity.CENTER_HORIZONTAL },
             )
+            addView(
+                dragHandle,
+                LinearLayout.LayoutParams(pad(48), pad(20)).apply { gravity = Gravity.CENTER_HORIZONTAL },
+            )
         }
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            TYPE_ACCESSIBILITY_OVERLAY_SAFE,
+            windowType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT,
         ).apply {
@@ -273,15 +369,21 @@ class AutoClickerOverlay : android.app.Service() {
             y = windowManager.defaultDisplay.height / 3
         }
 
-        attachDrag(column, params) { _, _ -> }
-        windowManager.addView(column, params)
+        attachDrag(dragHandle, column, params) { _, _ -> }
+        wm.addView(column, params)
         bubble = column
     }
 
-    /** Generic drag handling that updates the window position live. */
+    /**
+     * Generic drag handling that updates the window position live.
+     * [handle] is the view that receives the touch (may be a child of the
+     * window, e.g. the drag strip); [window] is the window root registered
+     * with the WindowManager — only its layout may be updated.
+     */
     @SuppressLint("ClickableViewAccessibility")
     private fun attachDrag(
-        view: View,
+        handle: View,
+        window: View,
         params: WindowManager.LayoutParams,
         onRelease: (Int, Int) -> Unit,
     ) {
@@ -290,7 +392,7 @@ class AutoClickerOverlay : android.app.Service() {
         var startX = 0
         var startY = 0
         var moved = false
-        view.setOnTouchListener { v, event ->
+        handle.setOnTouchListener { _, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = event.rawX
@@ -306,12 +408,12 @@ class AutoClickerOverlay : android.app.Service() {
                     if (dx * dx + dy * dy > 25) moved = true
                     params.x = startX + dx
                     params.y = startY + dy
-                    windowManager.updateViewLayout(v, params)
+                    try { wm().updateViewLayout(window, params) } catch (_: Exception) {}
                     true
                 }
                 MotionEvent.ACTION_UP -> {
                     if (moved) onRelease(params.x, params.y)
-                    v.performClick()
+                    window.performClick()
                     true
                 }
                 else -> false
@@ -334,25 +436,16 @@ class AutoClickerOverlay : android.app.Service() {
         }
     }
 
-    private fun formatInterval(ms: Int): String =
-        if (ms >= 1000) {
-            if (ms % 1000 == 0) "${ms / 1000}s" else String.format("%.1fs", ms / 1000f)
-        } else {
-            "${ms}ms"
-        }
-
-    // TYPE_ACCESSIBILITY_OVERLAY (2032): the overlay lives in the
-    // accessibility input path, NOT the regular input pipeline that
-    // dispatchGesture floods. This is why the successful auto clickers'
-    // stop buttons stay responsive at any interval. Only the active
-    // accessibility service can create this window type — since both
-    // services share the same UID, it works when the accessibility
-    // service is connected.
-    private val TYPE_ACCESSIBILITY_OVERLAY_SAFE: Int =
-        if (AutoClickerService.instance != null) 2032
-        else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+    /** Reads the interval field, clamps it, and commits it to [intervalMs]. */
+    private fun applyIntervalFromField() {
+        val field = intervalLabel ?: return
+        val parsed = field.text.toString().trim().toIntOrNull() ?: return
+        intervalMs = parsed.coerceIn(1, AutoClickerService.MAX_INTERVAL_MS)
+        field.setText(intervalMs.toString())
+    }
 
     companion object {
+        private const val TAG = "AutoClicker"
         const val CHANNEL_ID = "auto_clicker"
         const val NOTIFICATION_ID = 4712
         const val ACTION_STOP = "com.idsiber.sibermobile.autoclicker.STOP"
