@@ -144,7 +144,7 @@ class AutoClickerOverlay : android.app.Service() {
         val params = WindowManager.LayoutParams(
             size,
             size,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            TYPE_ACCESSIBILITY_OVERLAY_SAFE,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT,
         ).apply {
@@ -246,14 +246,14 @@ class AutoClickerOverlay : android.app.Service() {
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#CC071120"))
-            setPadding(pad(6), pad(6), pad(6), pad(6))
+            setPadding(pad(3), pad(3), pad(3), pad(3))
             addView(
                 playPause,
-                LinearLayout.LayoutParams(pad(48), pad(48)).apply { gravity = Gravity.CENTER_HORIZONTAL },
+                LinearLayout.LayoutParams(pad(34), pad(34)).apply { gravity = Gravity.CENTER_HORIZONTAL },
             )
             addView(
                 label,
-                LinearLayout.LayoutParams(pad(56), pad(32)).apply { gravity = Gravity.CENTER_HORIZONTAL },
+                LinearLayout.LayoutParams(pad(48), pad(28)).apply { gravity = Gravity.CENTER_HORIZONTAL },
             )
             addView(
                 close,
@@ -264,12 +264,12 @@ class AutoClickerOverlay : android.app.Service() {
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            TYPE_ACCESSIBILITY_OVERLAY_SAFE,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = pad(8)
+            x = pad(6)
             y = windowManager.defaultDisplay.height / 3
         }
 
@@ -340,6 +340,17 @@ class AutoClickerOverlay : android.app.Service() {
         } else {
             "${ms}ms"
         }
+
+    // TYPE_ACCESSIBILITY_OVERLAY (2032): the overlay lives in the
+    // accessibility input path, NOT the regular input pipeline that
+    // dispatchGesture floods. This is why the successful auto clickers'
+    // stop buttons stay responsive at any interval. Only the active
+    // accessibility service can create this window type — since both
+    // services share the same UID, it works when the accessibility
+    // service is connected.
+    private val TYPE_ACCESSIBILITY_OVERLAY_SAFE: Int =
+        if (AutoClickerService.instance != null) 2032
+        else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
 
     companion object {
         const val CHANNEL_ID = "auto_clicker"
