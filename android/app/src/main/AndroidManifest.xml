@@ -31,6 +31,7 @@
 
     <!-- ══ Personal tools: auto clicker overlay + gesture injection ══════ -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
 
     <!-- ══ Storage / media (file tools, gallery picker) ═══════════════════ -->
     <!-- Android 12 and below only: scoped storage covers 13+. -->
