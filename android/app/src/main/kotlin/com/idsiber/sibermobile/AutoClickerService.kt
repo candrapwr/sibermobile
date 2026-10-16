@@ -4,19 +4,26 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import kotlin.random.Random
 
 /**
  * Auto clicker engine: an AccessibilityService that injects taps at the
- * target position on a Handler loop. Each tap gets a small random jitter
- * in position (±3px) and timing (±80ms) so anti-bot filters that flag
- * perfectly repetitive synthetic input (TikTok, games) pass it through.
+ * target position. The timing loop runs on a dedicated background thread —
+ * the main thread only receives the individual dispatchGesture calls, so
+ * the overlay's stop button stays responsive even at 1-50ms intervals.
+ *
+ * Each tap gets a wide random jitter in position (±15px), duration
+ * (50-150ms) and timing (±80ms) so anti-bot filters in TikTok/games
+ * that flag perfectly repetitive synthetic input pass it through.
  */
 class AutoClickerService : AccessibilityService() {
 
-    private val handler = Handler(Looper.getMainLooper())
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var clickThread: HandlerThread? = null
+    private var clickHandler: Handler? = null
     private var running = false
     private var intervalMs = DEFAULT_INTERVAL_MS
     private var targetX = 0f
@@ -25,12 +32,17 @@ class AutoClickerService : AccessibilityService() {
     private val clickRunnable = object : Runnable {
         override fun run() {
             if (!running) return
-            tapWithJitter()
-            // Randomize the delay ±80ms so the interval is never perfectly
-            // uniform (anti-bot detection).
+            // Build the gesture here (background thread), dispatch on main.
+            val gesture = buildTapGesture()
+            mainHandler.post {
+                if (running) {
+                    try { dispatchGesture(gesture, null, null) } catch (_: Exception) {}
+                }
+            }
+            // Randomize the delay ±80ms so the interval is never uniform.
             val jitter = Random.nextLong(-80, 81)
-            val delay = (intervalMs + jitter).toLong().coerceIn(MIN_INTERVAL_MS.toLong(), MAX_INTERVAL_MS.toLong())
-            handler.postDelayed(this, delay)
+            val delay = (intervalMs.toLong() + jitter).coerceIn(1L, MAX_INTERVAL_MS.toLong())
+            clickHandler?.postDelayed(this, delay)
         }
     }
 
@@ -52,41 +64,43 @@ class AutoClickerService : AccessibilityService() {
     fun configure(x: Float, y: Float, intervalMs: Int) {
         targetX = x
         targetY = y
-        this.intervalMs = intervalMs.coerceIn(MIN_INTERVAL_MS, MAX_INTERVAL_MS)
+        this.intervalMs = intervalMs.coerceIn(1, MAX_INTERVAL_MS)
     }
 
     fun start() {
         if (running) return
         running = true
-        handler.post(clickRunnable)
+        // Dedicated thread: the timing loop never blocks the main thread,
+        // so overlay buttons remain easy to tap at any interval.
+        if (clickThread == null) {
+            clickThread = HandlerThread("AutoClickerLoop").also { it.start() }
+            clickHandler = Handler(clickThread!!.looper)
+        }
+        clickHandler?.post(clickRunnable)
     }
 
     fun stop() {
         running = false
-        handler.removeCallbacks(clickRunnable)
+        clickHandler?.removeCallbacks(clickRunnable)
+        mainHandler.removeCallbacksAndMessages(null)
     }
 
     val isRunning: Boolean get() = running
 
-    /**
-     * Injects a tap with ±3px position jitter and slight duration variation,
-     * mimicking the micro-movements of a real finger. Anti-bot systems in
-     * apps like TikTok filter out touches at perfectly identical coordinates.
-     */
-    private fun tapWithJitter() {
-        val jitterX = -3f + Random.nextFloat() * 6f
-        val jitterY = -3f + Random.nextFloat() * 6f
+    /** Builds a tap gesture with ±15px jitter and 50-150ms duration. */
+    private fun buildTapGesture(): GestureDescription {
+        val jitterX = -15f + Random.nextFloat() * 30f
+        val jitterY = -15f + Random.nextFloat() * 30f
         val x = (targetX + jitterX).coerceAtLeast(1f)
         val y = (targetY + jitterY).coerceAtLeast(1f)
-        val duration = 80L + Random.nextLong(0, 41) // 80-120ms
+        val duration = 50L + Random.nextLong(0, 101) // 50-150ms
 
         val path = Path().apply {
             moveTo(x, y)
             lineTo(x + 0.5f, y + 0.5f)
         }
         val stroke = GestureDescription.StrokeDescription(path, 0, duration)
-        val gesture = GestureDescription.Builder().addStroke(stroke).build()
-        dispatchGesture(gesture, null, null)
+        return GestureDescription.Builder().addStroke(stroke).build()
     }
 
     companion object {
@@ -94,8 +108,6 @@ class AutoClickerService : AccessibilityService() {
             private set
 
         const val DEFAULT_INTERVAL_MS = 200
-        const val MIN_INTERVAL_MS = 1
         const val MAX_INTERVAL_MS = 60000
-        const val TAP_DURATION_MS = 90L
     }
 }
