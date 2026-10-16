@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.location.LocationManager
 import android.net.ConnectivityManager
+import android.net.Uri
 import android.net.wifi.ScanResult
 import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
@@ -31,6 +32,7 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.os.StatFs
+import android.provider.Settings
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.telephony.CellIdentityCdma
@@ -149,6 +151,24 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
             "wifiScan" -> wifiScan(result)
 
             "cellScan" -> cellScan(result)
+
+            "autoClickerStatus" -> autoClickerStatus(result)
+            "requestOverlayPermission" -> {
+                requestOverlayPermission()
+                result.success(true)
+            }
+            "openAccessibilitySettings" -> {
+                openAccessibilitySettings()
+                result.success(true)
+            }
+            "autoClickerStart" -> {
+                startAutoClickerOverlay()
+                result.success(true)
+            }
+            "autoClickerStop" -> {
+                stopAutoClickerOverlay()
+                result.success(true)
+            }
 
             "setBusy" -> {
                 setBusyService(
@@ -804,6 +824,69 @@ class DeviceBridge(private val context: Context) : MethodChannel.MethodCallHandl
 
     private fun bytesToHex(bytes: ByteArray): String =
         bytes.joinToString("") { "%02x".format(it) }
+
+
+    // ── Auto clicker (personal tool) ────────────────────────────────────────
+
+    private fun autoClickerStatus(result: MethodChannel.Result) {
+        val overlayGranted = Settings.canDrawOverlays(context)
+        val accessibilityOn = AutoClickerService.instance != null
+        mainHandler.post {
+            result.success(
+                mapOf(
+                    "overlayGranted" to overlayGranted,
+                    "accessibilityOn" to accessibilityOn,
+                    "running" to (AutoClickerService.instance?.isRunning == true),
+                ),
+            )
+        }
+    }
+
+    private fun requestOverlayPermission() {
+        if (Settings.canDrawOverlays(context)) return
+        try {
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:" + context.packageName),
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        } catch (_: Exception) {
+            try {
+                context.startActivity(
+                    Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun openAccessibilitySettings() {
+        try {
+            context.startActivity(
+                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        } catch (_: Exception) {}
+    }
+
+    private fun startAutoClickerOverlay() {
+        val intent = Intent(context, AutoClickerOverlay::class.java)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun stopAutoClickerOverlay() {
+        val intent = Intent(context, AutoClickerOverlay::class.java)
+        intent.action = AutoClickerOverlay.ACTION_STOP
+        try {
+            context.startService(intent)
+        } catch (_: Exception) {}
+    }
 
     /** Starts/stops the keep-alive foreground service while a turn runs. */
     private fun setBusyService(busy: Boolean, text: String?) {

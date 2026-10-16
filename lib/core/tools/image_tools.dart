@@ -396,7 +396,27 @@ class GenerateImageTool extends Tool {
     var format = 'png';
     final url = item['url']?.toString();
     final b64 = item['b64_json']?.toString();
-    if (b64 != null && b64.isNotEmpty) {
+    // Some gateways put a data URL in `url` instead of returning a remote
+    // HTTP URL. Decode it locally; passing it to client.get() has no host.
+    String? dataUrlValue;
+    if (b64?.startsWith('data:image/') == true) {
+      dataUrlValue = b64;
+    } else if (url?.startsWith('data:image/') == true) {
+      dataUrlValue = url;
+    }
+    final dataUrl = dataUrlValue == null
+        ? null
+        : RegExp(r'^data:image/([^;,]+);base64,(.*)$', dotAll: true)
+              .firstMatch(dataUrlValue);
+    if (dataUrlValue != null && dataUrl == null) {
+      return errorResult('The gateway returned an invalid image data URL.');
+    }
+
+    if (dataUrl != null) {
+      bytes = base64Decode(dataUrl.group(2)!);
+      format = _imageFormatFromMime(dataUrl.group(1)) ?? format;
+    } else if (b64 != null && b64.isNotEmpty) {
+      // OpenAI-compatible APIs normally return raw base64 in `b64_json`.
       bytes = base64Decode(b64);
     } else if (url != null && url.isNotEmpty) {
       final res = await client.get(Uri.parse(url)).timeout(_generateTimeout);
@@ -407,11 +427,16 @@ class GenerateImageTool extends Tool {
         );
       }
       bytes = res.bodyBytes;
+      // Prefer the server's content type, which remains reliable for signed
+      // CDN URLs whose path has no image extension.
+      final mimeFormat = _imageFormatFromMime(res.headers['content-type']);
+      format = mimeFormat ?? format;
       final last = Uri.parse(url).pathSegments.lastOrNull;
       final ext = last != null && last.contains('.')
           ? last.split('.').last.toLowerCase()
           : null;
-      if (ext != null && ['png', 'jpg', 'jpeg', 'webp', 'gif'].contains(ext)) {
+      if (mimeFormat == null && ext != null &&
+          ['png', 'jpg', 'jpeg', 'webp', 'gif'].contains(ext)) {
         format = ext == 'jpeg' ? 'jpg' : ext;
       }
     } else {
@@ -455,6 +480,24 @@ class GenerateImageTool extends Tool {
       name = '$name.$format';
     }
     return name;
+  }
+
+  String? _imageFormatFromMime(String? value) {
+    if (value == null) return null;
+    final mime = value.split(';').first.trim().toLowerCase();
+    switch (mime) {
+      case 'image/png':
+        return 'png';
+      case 'image/jpeg':
+      case 'image/jpg':
+        return 'jpg';
+      case 'image/webp':
+        return 'webp';
+      case 'image/gif':
+        return 'gif';
+      default:
+        return null;
+    }
   }
 }
 

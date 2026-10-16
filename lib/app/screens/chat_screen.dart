@@ -15,6 +15,7 @@ import '../widgets/message_widgets.dart';
 import '../widgets/prompt_dialogs.dart';
 import 'sessions_screen.dart';
 import 'settings_screen.dart';
+import 'personal_tools_screen.dart';
 import 'ssh_accounts_screen.dart';
 import 'tools_screen.dart';
 
@@ -115,6 +116,9 @@ class _ChatScreenState extends State<ChatScreen> {
     switch (value) {
       case _ChatMenu.tools:
         await _open(const ToolsScreen());
+      case _ChatMenu.personalTools:
+        _open(const PersonalToolsScreen());
+        break;
       case _ChatMenu.sshAccounts:
         _open(const SshAccountsScreen());
         break;
@@ -322,7 +326,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-enum _ChatMenu { tools, history, sshAccounts, settings }
+enum _ChatMenu { tools, personalTools, history, sshAccounts, settings }
 
 class _MenuRow extends StatelessWidget {
   const _MenuRow({required this.icon, required this.label});
