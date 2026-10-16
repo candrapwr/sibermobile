@@ -63,8 +63,19 @@ class AutoClickerService : AccessibilityService() {
     val isRunning: Boolean get() = running
 
     private fun tap(x: Float, y: Float) {
-        val path = Path().apply { moveTo(x, y) }
-        val stroke = GestureDescription.StrokeDescription(path, 0, 40)
+        // Mimic a real finger tap: a short press with a tiny drift so apps
+        // that filter single-point synthetic touches still register it.
+        val path = Path().apply {
+            moveTo(x, y)
+            // Small linear drift (~1px) makes the stroke register as a real
+            // touch on apps that ignore zero-movement gestures.
+            lineTo(x + 0.8f, y + 0.8f)
+        }
+        val stroke = GestureDescription.StrokeDescription(
+            path,
+            0,
+            TAP_DURATION_MS,
+        )
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
         dispatchGesture(gesture, null, null)
     }
@@ -76,5 +87,6 @@ class AutoClickerService : AccessibilityService() {
         const val DEFAULT_INTERVAL_MS = 1000
         const val MIN_INTERVAL_MS = 200
         const val MAX_INTERVAL_MS = 60000
+        const val TAP_DURATION_MS = 90L
     }
 }

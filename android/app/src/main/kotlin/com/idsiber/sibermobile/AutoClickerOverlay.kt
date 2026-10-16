@@ -175,10 +175,10 @@ class AutoClickerOverlay : android.app.Service() {
                 engine.stop()
                 playPause.setImageResource(android.R.drawable.ic_media_play)
             } else {
-                // Always re-sync before starting: onCreate may have run before
-                // the accessibility service connected.
                 syncEngine()
-                engine.start()
+                // Small delay so the play-button tap itself doesn't get
+                // counted as the first auto-tap.
+                playPause.postDelayed({ engine.start() }, 350)
                 playPause.setImageResource(android.R.drawable.ic_media_pause)
             }
         }
