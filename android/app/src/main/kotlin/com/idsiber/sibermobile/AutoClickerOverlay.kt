@@ -107,14 +107,26 @@ class AutoClickerOverlay : android.app.Service() {
                 @Suppress("DEPRECATION")
                 Notification.Builder(this)
             }
+        // Stop action in the notification: always reachable from the shade,
+        // immune to the input flood at fast intervals (1-100ms) that makes
+        // the overlay buttons hard to hit.
+        val stopIntent = Intent(this, AutoClickerOverlay::class.java)
+            .setAction(ACTION_STOP)
+        val stopPending = PendingIntent.getService(
+            this,
+            1,
+            stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         startForeground(
             NOTIFICATION_ID,
             builder
                 .setSmallIcon(R.drawable.ic_busy)
                 .setContentTitle("Auto clicker aktif")
-                .setContentText("Geser crosshair, atur interval dari bubble.")
+                .setContentText("Tarik ke bawah → Stop, atau pakai tombol ⏸ di bubble.")
                 .setOngoing(true)
                 .setContentIntent(open)
+                .addAction(R.drawable.ic_busy, "STOP", stopPending)
                 .build(),
         )
     }
@@ -234,10 +246,10 @@ class AutoClickerOverlay : android.app.Service() {
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#CC071120"))
-            setPadding(pad(4), pad(4), pad(4), pad(4))
+            setPadding(pad(6), pad(6), pad(6), pad(6))
             addView(
                 playPause,
-                LinearLayout.LayoutParams(pad(36), pad(36)).apply { gravity = Gravity.CENTER_HORIZONTAL },
+                LinearLayout.LayoutParams(pad(48), pad(48)).apply { gravity = Gravity.CENTER_HORIZONTAL },
             )
             addView(
                 label,
@@ -245,7 +257,7 @@ class AutoClickerOverlay : android.app.Service() {
             )
             addView(
                 close,
-                LinearLayout.LayoutParams(pad(32), pad(32)).apply { gravity = Gravity.CENTER_HORIZONTAL },
+                LinearLayout.LayoutParams(pad(40), pad(40)).apply { gravity = Gravity.CENTER_HORIZONTAL },
             )
         }
 
