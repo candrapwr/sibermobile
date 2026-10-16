@@ -119,9 +119,8 @@ class AutoClickerOverlay : android.app.Service() {
             y = windowManager.defaultDisplay.height / 2 - size / 2
         }
 
-        attachDrag(view, params) { newX, newY ->
-            // The tap point is the crosshair center.
-            syncEngine(newX + size / 2f, newY + size / 2f)
+        attachDrag(view, params) { _, _ ->
+            syncEngine()
         }
         windowManager.addView(view, params)
         crosshair = view
@@ -176,6 +175,9 @@ class AutoClickerOverlay : android.app.Service() {
                 engine.stop()
                 playPause.setImageResource(android.R.drawable.ic_media_play)
             } else {
+                // Always re-sync before starting: onCreate may have run before
+                // the accessibility service connected.
+                syncEngine()
                 engine.start()
                 playPause.setImageResource(android.R.drawable.ic_media_pause)
             }
@@ -268,14 +270,17 @@ class AutoClickerOverlay : android.app.Service() {
         }
     }
 
-    /** Push current overlay state (crosshair center + interval) to the engine. */
-    private fun syncEngine(centerX: Float? = null, centerY: Float? = null) {
+    /** Push current overlay state (crosshair center + interval) to the engine.
+     *  Uses the window LayoutParams directly — getLocationOnScreen returns
+     *  [0,0] for TYPE_APPLICATION_OVERLAY windows. */
+    private fun syncEngine() {
         val engine = AutoClickerService.instance ?: return
         val ch = crosshair ?: return
-        val loc = IntArray(2)
-        ch.getLocationOnScreen(loc)
-        val x = centerX ?: (loc[0] + ch.width / 2f)
-        val y = centerY ?: (loc[1] + ch.height / 2f)
+        val chParams = ch.layoutParams as? WindowManager.LayoutParams ?: return
+        // params.x/y are the top-left corner with Gravity.TOP|START; the tap
+        // point is the center of the crosshair view.
+        val x = chParams.x + ch.width / 2f
+        val y = chParams.y + ch.height / 2f
         engine.configure(x, y, intervalMs)
     }
 
