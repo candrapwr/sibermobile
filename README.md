@@ -54,6 +54,7 @@ Android.
 - [Menjalankan proyek](#menjalankan-proyek)
 - [Konfigurasi provider](#konfigurasi-provider)
 - [Daftar tool](#daftar-tool)
+- [Personal Tools](#personal-tools)
 - [Menambahkan tool baru](#menambahkan-tool-baru)
 - [Penyimpanan data](#penyimpanan-data)
 - [Permission Android](#permission-android)
@@ -163,6 +164,11 @@ memang Anda kontrol.
   sesi dan bisa langsung ditawarkan ke user). Murni Dart (dartssh2), tanpa
   kode native; dua tool-nya (`ssh_client`, `sftp_client`) nonaktif
   secara default.
+- **Personal Tools (tanpa AI)** — utilitas perangkat yang dipakai langsung
+  oleh user, bukan model. Pertama: **Auto Clicker** — crosshair melayang
+  yang bisa digeser + bubble kontrol interval (200ms–60s) via layanan
+  aksesibilitas; berjalan sebagai foreground service dengan alur izin
+  (overlay + aksesibilitas) berstatus live di layarnya.
 - **Intelijen jaringan bebas** — `wifi_scan` (semua AP terlihat + flag BSSID
   acak untuk deteksi rogue AP/evil twin), `cell_scan` (operator SIM vs
   jaringan terdaftar, identitas + sinyal semua sel — bahan analisa deteksi
@@ -402,7 +408,7 @@ cuma menampilkan status — tidak ada field endpoint/key di mode ini.
 | API key | kosong | Disimpan terenkripsi di Android Keystore. Wajib diisi agar tool tersedia untuk AI. |
 
 Setelah endpoint dan key diisi, aktifkan toggle `web_search` di kartu ini atau
-di layar **Tool perangkat**. Jika salah satu belum tersedia, tool tidak
+di layar **AI Tools**. Jika salah satu belum tersedia, tool tidak
 didaftarkan ke agent dan tidak dikirim dalam schema tools. Toggle tetap terlihat
 sebagai **Atur** agar konfigurasi dapat dilengkapi kapan saja.
 
@@ -433,7 +439,7 @@ tetap digunakan untuk menyimpan konfigurasi provider dan agent.
 3 tool inti dan 34 tool opsional dalam 16 kategori. Tool inti tidak bisa
 dinonaktifkan. Sebagian besar tool perangkat (Device, Battery, Camera, Speech,
 Apps, NFC, analisa jaringan, shell, SSH) **nonaktif secara default** dan baru masuk schema
-model setelah diaktifkan di layar *Tool perangkat*. Kolom 🔒 = `requiresApproval`
+model setelah diaktifkan di layar *AI Tools*. Kolom 🔒 = `requiresApproval`
 (dialog konfirmasi dulu bila "Minta izin aksi berisiko" aktif). Kolom **Izin** =
 permission runtime yang diminta otomatis saat tool dipanggil.
 
@@ -548,6 +554,19 @@ dan memilih lokasi tujuan sendiri.
 
 ---
 
+## Personal Tools
+
+Utilitas perangkat yang dipakai **tanpa AI**, dari menu titik-tiga →
+*Personal Tools*:
+
+| Tool | Fungsi | Izin |
+|---|---|---|
+| Auto Clicker | Ketuk otomatis di titik crosshair yang digeser; interval 200ms–60s dikatur dari bubble melayang (⏶/⏷, ▶/⏸) | Overlay (SYSTEM_ALERT_WINDOW) + layanan aksesibilitas SiberMobile |
+
+Kedua izin hanya aktif dari pengaturan sistem (layar Personal Tools
+menyediakan tombol deep-link + status live). Layanan aksesibilitasnya
+hanya menyuntikkan gestur ketukan — tidak membaca isi layar.
+
 ## Menambahkan tool baru
 
 Ini alur yang paling sering kamu butuhkan. Empat langkah, tanpa menyentuh UI:
@@ -621,7 +640,7 @@ menambah plugin yang belum mendukung built-in Kotlin.
 flutter analyze && flutter test && flutter build apk --debug
 ```
 
-Selesai — tool langsung muncul di layar *Tool perangkat* (bisa di-toggle) dan
+Selesai — tool langsung muncul di layar *AI Tools* (bisa di-toggle) dan
 terkirim ke model sebagai JSON schema. Untuk tool yang wajib selalu tersedia,
 override `isCoreTool` menjadi `true`; ia tetap terdaftar meski pengguna
 mematikan semua tool opsional.
@@ -690,6 +709,7 @@ membutuhkannya jalan (lewat `ensurePermission()`).
 | `READ_PHONE_STATE` | `cell_scan` (identitas operator/sel) |
 | `VIBRATE` | getar notifikasi (`show_notification`) |
 | `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC` | menjaga proses saat turn berjalan di latar belakang |
+| `SYSTEM_ALERT_WINDOW` | Auto Clicker: crosshair & kontrol melayang (personal tool) |
 
 Blok `<queries>` mendeklarasikan intent yang dilihat aplikasi (`VIEW`,
 `PROCESS_TEXT`, `RecognitionService`, `TTS_SERVICE`) — wajib sejak Android 11
