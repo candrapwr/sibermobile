@@ -299,17 +299,18 @@ class AutoClickerOverlay : android.app.Service() {
     }
 
     /** Push current overlay state (crosshair center + interval) to the engine.
-     *  Uses the window LayoutParams directly — getLocationOnScreen returns
-     *  [0,0] for TYPE_APPLICATION_OVERLAY windows. */
+     *  Posted to run after layout so getLocationOnScreen is accurate. */
     private fun syncEngine() {
-        val engine = AutoClickerService.instance ?: return
         val ch = crosshair ?: return
-        val chParams = ch.layoutParams as? WindowManager.LayoutParams ?: return
-        // params.x/y are the top-left corner with Gravity.TOP|START; the tap
-        // point is the center of the crosshair view.
-        val x = chParams.x + ch.width / 2f
-        val y = chParams.y + ch.height / 2f
-        engine.configure(x, y, intervalMs)
+        val engine = AutoClickerService.instance
+        ch.post {
+            val e = AutoClickerService.instance ?: return@post
+            val loc = IntArray(2)
+            ch.getLocationOnScreen(loc)
+            val x = loc[0] + ch.width / 2f
+            val y = loc[1] + ch.height / 2f
+            e.configure(x, y, intervalMs)
+        }
     }
 
     private fun formatInterval(ms: Int): String =

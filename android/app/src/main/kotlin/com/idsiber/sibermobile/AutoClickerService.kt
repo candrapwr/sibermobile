@@ -6,11 +6,13 @@ import android.graphics.Path
 import android.os.Handler
 import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
+import kotlin.random.Random
 
 /**
  * Auto clicker engine: an AccessibilityService that injects taps at the
- * target position on a Handler loop. The overlay UI (AutoClickerOverlay)
- * drives it through the static [instance]; the service itself keeps no UI.
+ * target position on a Handler loop. Each tap gets a small random jitter
+ * in position (±3px) and timing (±80ms) so anti-bot filters that flag
+ * perfectly repetitive synthetic input (TikTok, games) pass it through.
  */
 class AutoClickerService : AccessibilityService() {
 
@@ -23,8 +25,12 @@ class AutoClickerService : AccessibilityService() {
     private val clickRunnable = object : Runnable {
         override fun run() {
             if (!running) return
-            tap(targetX, targetY)
-            handler.postDelayed(this, intervalMs.toLong())
+            tapWithJitter()
+            // Randomize the delay ±80ms so the interval is never perfectly
+            // uniform (anti-bot detection).
+            val jitter = Random.nextLong(-80, 81)
+            val delay = (intervalMs + jitter).toLong().coerceIn(MIN_INTERVAL_MS.toLong(), MAX_INTERVAL_MS.toLong())
+            handler.postDelayed(this, delay)
         }
     }
 
@@ -62,20 +68,23 @@ class AutoClickerService : AccessibilityService() {
 
     val isRunning: Boolean get() = running
 
-    private fun tap(x: Float, y: Float) {
-        // Mimic a real finger tap: a short press with a tiny drift so apps
-        // that filter single-point synthetic touches still register it.
+    /**
+     * Injects a tap with ±3px position jitter and slight duration variation,
+     * mimicking the micro-movements of a real finger. Anti-bot systems in
+     * apps like TikTok filter out touches at perfectly identical coordinates.
+     */
+    private fun tapWithJitter() {
+        val jitterX = -3f + Random.nextFloat() * 6f
+        val jitterY = -3f + Random.nextFloat() * 6f
+        val x = (targetX + jitterX).coerceAtLeast(1f)
+        val y = (targetY + jitterY).coerceAtLeast(1f)
+        val duration = 80L + Random.nextLong(0, 41) // 80-120ms
+
         val path = Path().apply {
             moveTo(x, y)
-            // Small linear drift (~1px) makes the stroke register as a real
-            // touch on apps that ignore zero-movement gestures.
-            lineTo(x + 0.8f, y + 0.8f)
+            lineTo(x + 0.5f, y + 0.5f)
         }
-        val stroke = GestureDescription.StrokeDescription(
-            path,
-            0,
-            TAP_DURATION_MS,
-        )
+        val stroke = GestureDescription.StrokeDescription(path, 0, duration)
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
         dispatchGesture(gesture, null, null)
     }
