@@ -114,6 +114,13 @@ class _PersonalToolsScreenState extends State<PersonalToolsScreen> {
             ),
             SizedBox(height: 8),
             Text(
+              'CATATAN: Di Android 13+, jika muncul "Restricted setting", '
+              'buka Settings → Apps → SiberMobile → titik-tiga (⋮) → '
+              '"Allow restricted settings" terlebih dahulu.',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            SizedBox(height: 8),
+            Text(
               'Kembali ke layar ini setelah kedua izin aktif, lalu tekan '
               'Mulai lagi.',
               style: TextStyle(fontWeight: FontWeight.w700),
