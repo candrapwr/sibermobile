@@ -93,8 +93,8 @@ class AutoClickerService : AccessibilityService() {
         var instance: AutoClickerService? = null
             private set
 
-        const val DEFAULT_INTERVAL_MS = 1000
-        const val MIN_INTERVAL_MS = 200
+        const val DEFAULT_INTERVAL_MS = 200
+        const val MIN_INTERVAL_MS = 1
         const val MAX_INTERVAL_MS = 60000
         const val TAP_DURATION_MS = 90L
     }

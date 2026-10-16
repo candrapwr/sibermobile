@@ -32,7 +32,7 @@ class AutoClickerOverlay : android.app.Service() {
     private var crosshairParams: WindowManager.LayoutParams? = null
     private var bubble: View? = null
     private var intervalMs = AutoClickerService.DEFAULT_INTERVAL_MS
-    private var intervalLabel: TextView? = null
+    private var intervalLabel: android.widget.EditText? = null
     private var playButton: ImageView? = null
 
     /**
@@ -160,14 +160,45 @@ class AutoClickerOverlay : android.app.Service() {
         }
         playButton = playPause
 
-        val label = TextView(this).apply {
-            text = formatInterval(intervalMs)
+        val label = android.widget.EditText(this).apply {
+            setText(intervalMs.toString())
             setTextColor(Color.WHITE)
             textSize = 12f
             gravity = Gravity.CENTER
-            minWidth = pad(44)
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            hint = "ms"
+            setHintTextColor(Color.parseColor("#88FFFFFF"))
+            setBackgroundColor(Color.parseColor("#22FFFFFF"))
+            setPadding(pad(4), pad(2), pad(4), pad(2))
         }
         intervalLabel = label
+
+        // When tapped, make the overlay focusable so the keyboard appears;
+        // on Enter/done, apply the value and unfocus.
+        label.setOnFocusChangeListener { v, hasFocus ->
+            val bubbleView = bubble
+            if (bubbleView != null) {
+                val lp = bubbleView.layoutParams as? WindowManager.LayoutParams
+                if (lp != null) {
+                    if (hasFocus) {
+                        lp.flags = lp.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+                    } else {
+                        lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    }
+                    try { windowManager.updateViewLayout(bubbleView, lp) } catch (_: Exception) {}
+                }
+            }
+        }
+        label.setOnEditorActionListener { v, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
+                val ms = v.text.toString().toIntOrNull() ?: intervalMs
+                intervalMs = ms.coerceIn(1, AutoClickerService.MAX_INTERVAL_MS)
+                v.setText(intervalMs.toString())
+                v.clearFocus()
+                syncEngine()
+                true
+            } else false
+        }
 
         fun miniButton(icon: Int, onTap: () -> Unit): ImageView =
             ImageView(this).apply {
@@ -176,17 +207,6 @@ class AutoClickerOverlay : android.app.Service() {
                 setOnClickListener { onTap() }
             }
 
-        val faster = miniButton(android.R.drawable.arrow_up_float) {
-            intervalMs = (intervalMs / 2).coerceAtLeast(AutoClickerService.MIN_INTERVAL_MS)
-            label.text = formatInterval(intervalMs)
-            syncEngine()
-        }
-        val slower = miniButton(android.R.drawable.arrow_down_float) {
-            val next = intervalMs * 2
-            intervalMs = next.coerceAtMost(AutoClickerService.MAX_INTERVAL_MS)
-            label.text = formatInterval(intervalMs)
-            syncEngine()
-        }
         val close = miniButton(android.R.drawable.ic_delete) {
             AutoClickerService.instance?.stop()
             stopSelf()
@@ -221,18 +241,7 @@ class AutoClickerOverlay : android.app.Service() {
             )
             addView(
                 label,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                ).apply { gravity = Gravity.CENTER_HORIZONTAL },
-            )
-            addView(
-                faster,
-                LinearLayout.LayoutParams(pad(32), pad(32)).apply { gravity = Gravity.CENTER_HORIZONTAL },
-            )
-            addView(
-                slower,
-                LinearLayout.LayoutParams(pad(32), pad(32)).apply { gravity = Gravity.CENTER_HORIZONTAL },
+                LinearLayout.LayoutParams(pad(56), pad(32)).apply { gravity = Gravity.CENTER_HORIZONTAL },
             )
             addView(
                 close,
